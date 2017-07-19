@@ -127,7 +127,7 @@ int udp_server_receive(struct socket *sock, struct sockaddr_in *address, unsigne
 int connection_handler(void *data)
 {
   struct sockaddr_in address;
-  struct socket *accept_socket = udp_server->server_socket;
+  struct socket *server_socket = udp_server->server_socket;
 
   int ret;
   unsigned char * in_buf = kmalloc(len, GFP_KERNEL);
@@ -149,12 +149,12 @@ int connection_handler(void *data)
 
     memset(in_buf, '\0', len);
     memset(&address, 0, sizeof(struct sockaddr_in));
-    ret = udp_server_receive(accept_socket, &address, in_buf, len, MSG_WAITALL);
+    ret = udp_server_receive(server_socket, &address, in_buf, len, MSG_WAITALL);
     if(ret > 0){
       printk(KERN_INFO MODULE_NAME": Got %s [connection_handler]", in_buf);
       memset(out_buf, '\0', len);
       strcat(out_buf, "GOT IT");
-      udp_server_send(accept_socket, &address, out_buf,strlen(out_buf), MSG_WAITALL);
+      udp_server_send(server_socket, &address, out_buf,strlen(out_buf), MSG_WAITALL);
     }
   }
 
