@@ -13,9 +13,9 @@ If you want to test only the server, you could also uset `netcat -u [ipaddress] 
 
 ## Usage
 1. Compile ( `make` in the folder where these files are) 
-2. Load server with `sudo insmod udp_server.ko` (see [Parameters](https://github.com/esposem/Kernel_UDP/tree/master#parameters)
+2. Load server with `sudo insmod udp_server.ko` (see [Parameters](#parameters)
  for optional parameters)
-3. Load client with `sudo insmod udp_client.ko` (see [Parameters](https://github.com/esposem/Kernel_UDP/tree/master#parameters) for optional parameters)
+3. Load client with `sudo insmod udp_client.ko` (see [Parameters](#parameters) for optional parameters)
 4. Observe in /var/log/kern.log the message passing:
 ```
 emanuele-MacBookPro kernel: [ 1560.383981] UDP Server: Server initialized [network_server_init]
