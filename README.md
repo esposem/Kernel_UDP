@@ -42,7 +42,7 @@ emanuele-MacBookPro kernel: [ 1593.011295] UDP Server: Terminated thread [networ
 ```
 <b>Tip:</b> If you want to have a dynamic view of the kern.log file, use this command `tail -f /var/log/kern.log`
 
-By default, server connects on localhost on port 3000.
+By default, server connects on localhost on port 3000.<br> The socket is bind to any IP address of machine, if you want to change it change this line `server.sin_addr.s_addr = INADDR_ANY;`
 
 ## Parameters:
 On client, the server ip, server port and message length can be specified as module parameters
