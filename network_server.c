@@ -14,7 +14,12 @@ MODULE_AUTHOR("Emanuele Giuseppe Esposito");
 #define MAX_RCV_WAIT 100000 // in microseconds
 
 static int port = 3000;
+module_param(port, int, S_IRUGO);
+MODULE_PARM_DESC(port,"The receiving port, default 3000");
+
 static int len = 49;
+module_param(len, int, S_IRUGO);
+MODULE_PARM_DESC(len,"Packet length, default 49 (automatically added space for \0)");
 
 struct udp_server_service
 {

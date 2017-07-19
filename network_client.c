@@ -17,12 +17,13 @@ static int port = 3000;
 module_param(port, int, S_IRUGO);
 MODULE_PARM_DESC(port,"Server port, default 3000");
 
-static unsigned char destip[5] = {127,0,0,1,'\0'};
-static int len = 49;
-// static int num = 0;
-// module_param_array(destip, char, &num , S_IRUGO);
-// MODULE_PARM_DESC(destip,"Server ip, default 127,0,0,1");
+static char * destip = "127.0.0.1";
+module_param(destip, charp, S_IRUGO);
+MODULE_PARM_DESC(destip,"Server ip, default 127.0.0.1");
 
+static int len = 49;
+module_param(len, int, S_IRUGO);
+MODULE_PARM_DESC(len,"Packet length, default 49 (automatically added space for \0)");
 
 struct udp_client_service{
   struct socket * client_socket;
@@ -33,57 +34,101 @@ static struct udp_client_service * udp_client;
 static atomic_t released_socket = ATOMIC_INIT(0);  // 0 no, 1 yes
 static atomic_t thread_running = ATOMIC_INIT(0);   // 0 no, 1 yes
 static atomic_t struct_allocated = ATOMIC_INIT(0); // 0 no, 1 yes
+static char ** ipadd;
+static unsigned char realip[5] = {127,0,0,1,'\0'};
 
-// int isValidIp4 (char *str) {
-//     int segs = 0;   /* Segment count. */
-//     int chcnt = 0;  /* Character count within segment. */
-//     int accum = 0;  /* Accumulator for segment. */
-//
-//     /* Catch NULL pointer. */
-//     if (str == NULL)
-//         return 0;
-//
-//     /* Process every character in string. */
-//     while (*str != '\0') {
-//         /* Segment changeover. */
-//
-//         if (*str == '.') {
-//             /* Must have some digits in segment. */
-//             if (chcnt == 0)
-//                 return 0;
-//
-//             /* Limit number of segments. */
-//             if (++segs == 4)
-//                 return 0;
-//
-//             /* Reset segment values and restart loop. */
-//             chcnt = accum = 0;
-//             str++;
-//             continue;
-//         }
-//
-//         /* Check numeric. */
-//         if ((*str < '0') || (*str > '9'))
-//             return 0;
-//
-//         /* Accumulate and check segment. */
-//         if ((accum = accum * 10 + *str - '0') > 255)
-//             return 0;
-//
-//         /* Advance other segment specific stuff and continue loop. */
-//         chcnt++;
-//         str++;
-//     }
-//     /* Check enough segments and enough characters in last segment. */
-//     if (segs != 3)
-//         return 0;
-//
-//     if (chcnt == 0)
-//         return 0;
-//
-//     /* Address okay. */
-//     return 1;
-// }
+int freeall(int n){
+  n--;
+  while (n >= 0){
+    kfree(ipadd[n]);
+    n--;
+  }
+  kfree(ipadd);
+  return 0;
+}
+
+int isValidIp4 (char *str) {
+  int segs = 0;
+  int chcnt = 0;
+  int accum = 0;
+  int firstiszero = 0;
+  int size_str = 0;
+  char * begin = str;
+  int num = 0;
+
+  if (str == NULL){
+    return freeall(num);
+  }
+
+
+  size_str = strlen(str);
+  if(memcmp(str, "localhost", size_str > 9 ? 9 : size_str) == 0){
+    freeall(0);
+    return 2;
+  }
+
+  while (*str != '\0') {
+    // printk(KERN_INFO "%c", *str);
+
+    if(num > 3){
+      return freeall(4);
+    }
+
+    if (*str == '.') {
+
+      if (chcnt == 0)
+        return freeall(num);
+
+      if (++segs == 4)
+        return freeall(num);
+
+      ipadd[num] = kmalloc(str-begin + 1,GFP_KERNEL);
+      memcpy(ipadd[num], begin, str-begin);
+      ipadd[num][str-begin] = '\0';
+      num++;
+
+      chcnt = accum = 0;
+      firstiszero = 0;
+      str++;
+      continue;
+    }
+
+    if ((*str < '0') || (*str > '9'))
+      return freeall(num);
+
+    if(chcnt == 0 && *str == '0'){
+      // printk(KERN_INFO "it' s a beginning zero");
+      firstiszero = 1;
+    } else if(chcnt == 1 && firstiszero == 1){
+      // printk(KERN_INFO "number after zero? free(%d)", num);
+      return freeall(num);
+    }else{
+      // printk(KERN_INFO "firstiszero = 0");
+      firstiszero = 0;
+    }
+
+    if ((accum = accum * 10 + *str - '0') > 255)
+      return freeall(num);
+
+    if(chcnt == 0){
+      begin = str;
+    }
+
+    chcnt++;
+    str++;
+  }
+  if (segs != 3)
+    return freeall(num);
+
+  if (chcnt == 0)
+    return freeall(num);
+
+  ipadd[num] = kmalloc(str-begin + 1,GFP_KERNEL);
+  memcpy(ipadd[num], begin, str-begin);
+  ipadd[num][str-begin] = '\0';
+
+  return 1;
+}
 
 u32 create_address(u8 *ip)
 {
@@ -103,7 +148,6 @@ u32 create_address(u8 *ip)
 int udp_client_send(struct socket *sock, struct sockaddr_in * address, const char *buf, const size_t length, unsigned long flags)
 {
   struct msghdr msg;
-  //struct iovec iov;
   struct kvec vec;
   int len, written = 0, left = length;
   mm_segment_t oldmm;
@@ -187,13 +231,14 @@ int udp_client_connect(void)
 {
   struct sockaddr_in saddr;
   struct socket * conn_socket;
+  // unsigned char destip[5] = {127,0,0,1,'\0'};
 
   char response[len+1];
   char reply[len+1];
   int ret = -1;
   struct timeval tv;
 
-  printk(KERN_INFO MODULE_NAME": Server IP: 127.0.0.1 [udp_client_connect]");
+  printk(KERN_INFO MODULE_NAME": Server IP: %s [udp_client_connect]", destip);
   ret = sock_create(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &udp_client->client_socket);
   if(ret < 0){
     printk(KERN_INFO MODULE_NAME": Error: %d while creating socket [udp_client_connect]", ret);
@@ -207,7 +252,7 @@ int udp_client_connect(void)
   memset(&saddr, 0, sizeof(saddr));
   saddr.sin_family = AF_INET;
   saddr.sin_port = htons(port);
-  saddr.sin_addr.s_addr = htonl(create_address(destip));
+  saddr.sin_addr.s_addr = htonl(create_address(realip));
 
   ret = conn_socket->ops->connect(conn_socket, (struct sockaddr *)&saddr, sizeof(saddr), O_RDWR);
   if(ret && (ret != -EINPROGRESS))
@@ -270,7 +315,27 @@ void udp_client_start(void){
 
 static int __init network_client_init(void)
 {
-  // printk(KERN_INFO "%s", isValidIp4("127.0.0.1") == 1 ? "yes" : "no");
+  int i =0;
+  ipadd = kmalloc(4 * sizeof(char *), GFP_KERNEL);
+  if(ipadd){
+    switch (isValidIp4(destip)) {
+      case 1:
+        // printk(KERN_INFO "Given valid ip address %s", destip);
+        for(i=0; i < 4; i++){
+          long l;
+          kstrtol(ipadd[i], 10, &l);
+          realip[i] = l;
+        }
+        freeall(4);
+        break;
+      // case 2:
+        // printk(KERN_INFO "Given localhost");
+        // break;
+      // default:
+        // printk(KERN_INFO "Given not valid address ip, using the default one");
+    }
+  }
+
   atomic_set(&released_socket, 1);
   udp_client = kmalloc(sizeof(struct udp_client_service), GFP_KERNEL);
   if(!udp_client){
