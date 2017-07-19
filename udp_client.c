@@ -21,9 +21,9 @@ static char * destip = "127.0.0.1";
 module_param(destip, charp, S_IRUGO);
 MODULE_PARM_DESC(destip,"Server ip, default 127.0.0.1");
 
-static int len = 49;
+static int len = 50;
 module_param(len, int, S_IRUGO);
-MODULE_PARM_DESC(len,"Packet length, default 49 (automatically added space for \0)");
+MODULE_PARM_DESC(len,"Packet length, default 50 (automatically added space for \0)");
 
 struct udp_client_service{
   struct socket * client_socket;
@@ -233,8 +233,8 @@ int udp_client_connect(void)
   struct socket * conn_socket;
   // unsigned char destip[5] = {127,0,0,1,'\0'};
 
-  char response[len+1];
-  char reply[len+1];
+  char * in_buf = kmalloc(len, GFP_KERNEL);
+  char * out_buf = kmalloc(len, GFP_KERNEL);
   int ret = -1;
   struct timeval tv;
 
@@ -269,10 +269,10 @@ int udp_client_connect(void)
   tv.tv_usec = MAX_RCV_WAIT;
   kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(tv));
 
-  memset(&reply, 0, len+1);
-  strcat(reply, "HELLO");
+  memset(out_buf, '\0', len+1);
+  strcat(out_buf, "HELLO");
   printk(KERN_INFO MODULE_NAME": Sent HELLO to server [udp_client_connect]");
-  udp_client_send(conn_socket, &saddr, reply, strlen(reply), MSG_WAITALL);
+  udp_client_send(conn_socket, &saddr, out_buf, strlen(out_buf), MSG_WAITALL);
 
   printk(KERN_INFO MODULE_NAME": Waiting to receive a message [udp_client_connect]");
   while (1){
@@ -284,18 +284,20 @@ int udp_client_connect(void)
         atomic_set(&released_socket, 1);
         sock_release(udp_client->client_socket);
       }
+      kfree(in_buf);
+      kfree(out_buf);
       return 0;
     }
 
-    memset(response, 0, len+1);
-    ret = udp_client_receive(conn_socket, &saddr, response, len,MSG_WAITALL);
+    memset(in_buf, '\0', len);
+    ret = udp_client_receive(conn_socket, &saddr, in_buf, len,MSG_WAITALL);
     if(ret > 0){
-      printk(KERN_INFO MODULE_NAME": Got %s [udp_client_connect]", response);
+      printk(KERN_INFO MODULE_NAME": Got %s [udp_client_connect]", in_buf);
 
-      // memset(&reply, 0, len+1);
-      // strcat(reply, "OK");
+      // memset(out_buf, '\0', len);
+      // strcat(out_buf, "OK");
       // printk(KERN_INFO MODULE_NAME": Sent OK to server [udp_client_connect]");
-      // udp_client_send(conn_socket, &saddr, reply, strlen(reply), MSG_WAITALL);
+      // udp_client_send(conn_socket, &saddr, out_buf, strlen(out_buf), MSG_WAITALL);
     }
   }
 

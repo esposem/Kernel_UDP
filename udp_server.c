@@ -17,9 +17,9 @@ static int port = 3000;
 module_param(port, int, S_IRUGO);
 MODULE_PARM_DESC(port,"The receiving port, default 3000");
 
-static int len = 49;
+static int len = 50;
 module_param(len, int, S_IRUGO);
-MODULE_PARM_DESC(len,"Packet length, default 49 (automatically added space for \0)");
+MODULE_PARM_DESC(len,"Packet length, default 50 (automatically added space for \0)");
 
 struct udp_server_service
 {
@@ -130,8 +130,8 @@ int connection_handler(void *data)
   struct socket *accept_socket = udp_server->server_socket;
 
   int ret;
-  unsigned char in_buf[len+1];
-  unsigned char out_buf[len+1];
+  unsigned char * in_buf = kmalloc(len, GFP_KERNEL);
+  unsigned char * out_buf = kmalloc(len, GFP_KERNEL);
 
   while (1){
 
@@ -142,15 +142,17 @@ int connection_handler(void *data)
         atomic_set(&released_socket, 1);
         sock_release(udp_server->server_socket);
       }
+      kfree(in_buf);
+      kfree(out_buf);
       return 0;
     }
 
-    memset(in_buf, 0, len+1);
+    memset(in_buf, '\0', len);
     memset(&address, 0, sizeof(struct sockaddr_in));
     ret = udp_server_receive(accept_socket, &address, in_buf, len, MSG_WAITALL);
     if(ret > 0){
       printk(KERN_INFO MODULE_NAME": Got %s [connection_handler]", in_buf);
-      memset(&out_buf, 0, len+1);
+      memset(out_buf, '\0', len);
       strcat(out_buf, "GOT IT");
       udp_server_send(accept_socket, &address, out_buf,strlen(out_buf), MSG_WAITALL);
     }
