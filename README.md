@@ -12,9 +12,10 @@ If you want to test only the server, you could also uset `netcat -u [ipaddress] 
 
 
 ## Usage
-1. Compile ( `make` in the folder where these files are)
-2. Load server with `sudo insmod udp_server.ko` (see Parameters for optional parameters)
-3. Load client with `sudo insmod udp_client.ko` (see Parameters for optional parameters)
+1. Compile ( `make` in the folder where these files are) 
+2. Load server with `sudo insmod udp_server.ko` (see [Parameters](#parameters)
+ for optional parameters)
+3. Load client with `sudo insmod udp_client.ko` (see [Parameters](#parameters) for optional parameters)
 4. Observe in /var/log/kern.log the message passing:
 ```
 emanuele-MacBookPro kernel: [ 1560.383981] UDP Server: Server initialized [network_server_init]
@@ -41,21 +42,21 @@ emanuele-MacBookPro kernel: [ 1593.011295] UDP Server: Terminated thread [networ
 ```
 <b>Tip:</b> If you want to have a dynamic view of the kern.log file, use this command `tail -f /var/log/kern.log`
 
-By default, server connects on localhost on port 3000.
+By default, server connects on localhost on port 3000.<br> The socket is bind to any IP address of machine, if you want to change it change this line: <br> `server.sin_addr.s_addr = INADDR_ANY;`
 
 ## Parameters:
 On client, the server ip, server port and message length can be specified as module parameters
 when loading the module: `sudo insmod udp_client.ko destip=123.12.1.2 port=3000 len=49`
 
 On server, the server port and message length can be specified as module parameters
-when loading the module: `sudo insmod udp_server.ko port=3000 len=49`
+when loading the module: <br> `sudo insmod udp_server.ko port=3000 len=49`
 
 ## run.sh
 To fasten the loading / unloading of modules, I also created a script `run.sh`. This script calls `make`, `insmod`,
 wait a command to terminate and call `rmmod`.
 
 1. Give appropriate executing permission using `chmod`
-2. Run it `./run udp_client destip=xxx.xxx.xxx.xxx port=xxxx len=xxx`
+2. Run it `./run udp_client [destip=xxx.xxx.xxx.xxx] [port=xxxx] [len=xxx]`
 3. Once unloaded the module, it will wait for `enter` or `ctrl-c` to either continue and unload the module or terminate.
 
 If the module is already running and this script is called, the module is unloaded first, recompiled, and loaded again.
