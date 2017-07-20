@@ -5,11 +5,14 @@ Once running, the client send HELLO to server, that answers GOT IT.
 
 
 ## Files
-`udp_client`: kernel module for client <br>
-`udp_server`: kernel module for server <br>
-`user_client`: a c user application to test that server receives message from any udp client. <br> <br>
-If you want to test only the server, you could also uset `netcat -u [ipaddress] [port]` to send message.
+`udp_client.c`: kernel module for client <br>
+`udp_server.c`: kernel module for server <br>
+`user_client.c`: a c user application to test that server receives message from any udp client. <br> <br>
+If you want to test only the server, you could also use `netcat -u [ipaddress] [port]` to send message (to install it, run `apt-get install netcat`).
 
+To run the server in a machine, you just need `udp_server.c`, `run.sh` (optional),  and the `Makefile` <br> (delete line 1 `obj-m += udp_client.o`). <br>
+
+To run the server in a machine, you just need `udp_client`, `run.sh` (optional),  and the `Makefile`<br> (delete line 2 `obj-m += udp_server.o`). 
 
 ## Usage
 1. Compile ( `make` in the folder where these files are) 
@@ -50,6 +53,8 @@ when loading the module: `sudo insmod udp_client.ko destip=123.12.1.2 port=3000 
 
 On server, the server port and message length can be specified as module parameters
 when loading the module: <br> `sudo insmod udp_server.ko port=3000 len=49`
+
+<b> Warning: </b> Message length of both server and client should be equal, otherwise the receiver could get a truncated message. 
 
 ## run.sh
 To fasten the loading / unloading of modules, I also created a script `run.sh`. This script calls `make`, `insmod`,
