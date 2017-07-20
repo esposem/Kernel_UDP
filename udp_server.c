@@ -12,6 +12,8 @@ MODULE_AUTHOR("Emanuele Giuseppe Esposito");
 
 #define MODULE_NAME "UDP Server"
 #define MAX_RCV_WAIT 100000 // in microseconds
+#define MAX_UDP_SIZE 65507
+
 
 static int port = 3000;
 module_param(port, int, S_IRUGO);
@@ -19,7 +21,9 @@ MODULE_PARM_DESC(port,"The receiving port, default 3000");
 
 static int len = 50;
 module_param(len, int, S_IRUGO);
-MODULE_PARM_DESC(len,"Packet length, default 50 (automatically added space for \0)");
+// the \0 is allocated, but not sent. It's just for printing purposes
+MODULE_PARM_DESC(len,"Data packet length, default 50, max 65507 (automatically added space for terminating \0)");
+
 
 struct udp_server_service
 {
@@ -170,6 +174,7 @@ int udp_server_listen(void)
 
   server_err = sock_create(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &udp_server->server_socket);
   if(server_err < 0){
+    atomic_set(&thread_running, 0);
     printk(KERN_INFO MODULE_NAME": Error: %d while creating socket [udp_server_listen]", server_err);
     return 0;
   }else{
@@ -185,8 +190,12 @@ int udp_server_listen(void)
   server_err = conn_socket->ops->bind(conn_socket, (struct sockaddr*)&server, sizeof(server));
   if(server_err < 0) {
     printk(KERN_INFO MODULE_NAME": Error: %d while binding socket [udp_server_listen]", server_err);
+    if(server_err == -98){
+      printk(KERN_INFO MODULE_NAME": Error: EADDRINUSE, address already in use [udp_server_listen]");
+    }
     atomic_set(&released_socket, 1);
     sock_release(udp_server->server_socket);
+    atomic_set(&thread_running, 0);
     return 0;
   }else{
     printk(KERN_INFO MODULE_NAME": Socket is bind to any IP address of machine [udp_server_listen]");
@@ -212,6 +221,11 @@ void udp_server_start(void){
 
 static int __init network_server_init(void)
 {
+  if(len < 0 || len > MAX_UDP_SIZE){
+    printk(KERN_INFO MODULE_NAME": Wrong len, using default one");
+    len = 50;
+  }
+  len++;
   atomic_set(&released_socket, 1);
   udp_server = kmalloc(sizeof(struct udp_server_service), GFP_KERNEL);
   if(!udp_server){

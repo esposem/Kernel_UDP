@@ -12,6 +12,8 @@ MODULE_AUTHOR("Emanuele Giuseppe Esposito");
 
 #define MODULE_NAME "UDP Client"
 #define MAX_RCV_WAIT 100000 // in microseconds
+#define MAX_UDP_SIZE 65507
+
 
 static int port = 3000;
 module_param(port, int, S_IRUGO);
@@ -23,7 +25,9 @@ MODULE_PARM_DESC(destip,"Server ip, default 127.0.0.1");
 
 static int len = 50;
 module_param(len, int, S_IRUGO);
-MODULE_PARM_DESC(len,"Packet length, default 50 (automatically added space for \0)");
+// the \0 is allocated, but not sent. It's just for printing purposes
+MODULE_PARM_DESC(len,"Data packet length, default 50, max 65507 (automatically added space for terminating \0)");
+
 
 struct udp_client_service{
   struct socket * client_socket;
@@ -242,7 +246,8 @@ int udp_client_connect(void)
   ret = sock_create(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &udp_client->client_socket);
   if(ret < 0){
     printk(KERN_INFO MODULE_NAME": Error: %d while creating socket [udp_client_connect]", ret);
-    return -1;
+    atomic_set(&thread_running, 0);
+    return 0;
   }else{
     printk(KERN_INFO MODULE_NAME": Created socket [udp_client_connect]");
     atomic_set(&released_socket, 0);
@@ -260,7 +265,8 @@ int udp_client_connect(void)
     printk(KERN_INFO MODULE_NAME": Could not connect to server [udp_client_connect] %d", ret);
     atomic_set(&released_socket, 1);
     sock_release(udp_client->client_socket);
-    return -1;
+    atomic_set(&thread_running, 0);
+    return 0;
   }else{
     printk(KERN_INFO MODULE_NAME": Connected to server [udp_client_connect]");
   }
@@ -318,6 +324,11 @@ void udp_client_start(void){
 static int __init network_client_init(void)
 {
   int i =0;
+  if(len < 0 || len > MAX_UDP_SIZE){
+    printk(KERN_INFO MODULE_NAME"Wrong len, using default one");
+    len = 50;
+  }
+  len++;
   ipadd = kmalloc(4 * sizeof(char *), GFP_KERNEL);
   if(ipadd){
     switch (isValidIp4(destip)) {
