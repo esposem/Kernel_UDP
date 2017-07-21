@@ -1,5 +1,5 @@
 # Kernel_UDP
-A kernel module that implements client - server communication in UDP. <br>
+Two kernel modules that implement UDP client - server communication. <br>
 Tested using Ubuntu 17.4 kernel version 4.10.0-26-generic. <br>
 Once running, the client send HELLO to server, that answers GOT IT.
 
