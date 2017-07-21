@@ -49,7 +49,7 @@ int udp_server_send(struct socket *sock, struct sockaddr_in *address, const char
     msg.msg_control = NULL;
     msg.msg_controllen = 0;
     msg.msg_flags = flags;
-    msg.msg_flags   = 0;
+    // msg.msg_flags   = 0;
 
     oldmm = get_fs(); set_fs(KERNEL_DS);
     printk(KERN_INFO MODULE_NAME": Sent message to %pI4 [udp_server_send]", &address->sin_addr);
