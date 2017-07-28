@@ -1,67 +1,65 @@
 # Kernel_UDP
 Two kernel modules that implement UDP client - server communication. <br>
 Tested using Ubuntu 17.4 kernel version 4.10.0-26-generic. <br>
-Once running, the client send HELLO to server, that answers GOT IT.
+Once running, the client send HELLO to server, that answers OK.
 
 
 ## Files
-`udp_client.c`: kernel module for client <br>
-`udp_server.c`: kernel module for server <br>
+`k_udp/udp_client.c`: kernel module for client <br>
+`k_udp/udp_server.c`: kernel module for server <br>
+`k_udp/kernel_udp.c` : internal implementation of common methods needed by both server an client <br>
+`k_udp/include/kernel_udp.h` : header file containing all methods implemented by `kernel_udp.c` <br>
 `user_client.c`: a c user application to test that server receives message from any udp client. <br> <br>
-If you want to test only the server, you could also use `netcat -u [ipaddress] [port]` to send message (to install it, run `apt-get install netcat`).
 
-To run the server in a machine, you just need `udp_server.c`, `run.sh` (optional),  and the `Makefile` <br> (delete line 1 `obj-m += udp_client.o`). <br>
+If you want to test only the server, you can also use `netcat -u [ipaddress] [port]` to send message (to install it, run `apt-get install netcat`). <br>
+If you want to test only the client, you can also use `netcat -l -u [ipaddress] [port]` to listen for message (it will receive HELLO as soon the client executes).
 
-To run the server in a machine, you just need `udp_client`, `run.sh` (optional),  and the `Makefile`<br> (delete line 2 `obj-m += udp_server.o`). 
+To run the server in a machine, you just need `k_udp/udp_server.c`, `run.sh` (optional), `kernel_udp.c`, `kernel_udp.h`,  and the `Makefile` <br> (delete line 2,4,5 and 6). <br>
+
+To run the server in a machine, you just need `udp_client`, `run.sh` (optional), `kernel_udp.c`, `kernel_udp.h`,  and the `Makefile`<br> (delete line 1, 8,9 and 10). 
 
 ## Usage
 1. Compile ( `make` in the folder where these files are) 
-2. Load server with `sudo insmod udp_server.ko` (see [Parameters](#parameters)
- for optional parameters)
+2. Load server with `sudo insmod udp_server.ko` (see [Parameters](#parameters) for optional parameters)
 3. Load client with `sudo insmod udp_client.ko` (see [Parameters](#parameters) for optional parameters)
 4. Observe in /var/log/kern.log the message passing:
 ```
-emanuele-MacBookPro kernel: [ 1560.383981] UDP Server: Server initialized [network_server_init]
-emanuele-MacBookPro kernel: [ 1560.384003] UDP Server: Thread running [udp_server_start]
-emanuele-MacBookPro kernel: [ 1560.384009] UDP Server: Created socket [udp_server_listen]
-emanuele-MacBookPro kernel: [ 1560.384013] UDP Server: Socket is bind to any IP address of machine [udp_server_listen]
-emanuele-MacBookPro kernel: [ 1566.800022] UDP Client: Client initialized [network_client_init]
-emanuele-MacBookPro kernel: [ 1566.800103] UDP Client: Thread running [udp_client_start]
-emanuele-MacBookPro kernel: [ 1566.800106] UDP Client: Server IP: 127.0.0.1 [udp_client_connect]
-emanuele-MacBookPro kernel: [ 1566.800129] UDP Client: Created socket [udp_client_connect]
-emanuele-MacBookPro kernel: [ 1566.800153] UDP Client: Connected to server [udp_client_connect]
-emanuele-MacBookPro kernel: [ 1566.800156] UDP Client: Sent HELLO to server [udp_client_connect]
-emanuele-MacBookPro kernel: [ 1566.800191] UDP Client: Waiting to receive a message [udp_client_connect]
-emanuele-MacBookPro kernel: [ 1566.800203] UDP Server: Received message from 127.0.0.1 saying HELLO [udp_server_receive]
-emanuele-MacBookPro kernel: [ 1566.800204] UDP Server: Got HELLO [connection_handler]
-emanuele-MacBookPro kernel: [ 1566.800206] UDP Server: Sent message to 127.0.0.1 [udp_server_send]
-emanuele-MacBookPro kernel: [ 1566.800228] UDP Client: Received message GOT IT from 127.0.0.1 (server) [udp_client_receive]
-emanuele-MacBookPro kernel: [ 1566.800230] UDP Client: Got GOT IT [udp_client_connect]
-emanuele-MacBookPro kernel: [ 1585.939102] UDP Client: Released socket [udp_client_receive]
-emanuele-MacBookPro kernel: [ 1585.939140] UDP Client: Terminated thread [network_client_exit]
-emanuele-MacBookPro kernel: [ 1585.939143] UDP Client: Module unloaded [network_client_exit]
-emanuele-MacBookPro kernel: [ 1593.011248] UDP Server: Released socket [udp_server_receive]
-emanuele-MacBookPro kernel: [ 1593.011295] UDP Server: Terminated thread [network_server_exit]
+emanuele-MacBookPro kernel: [ 7155.409235] Server: Initialized
+emanuele-MacBookPro kernel: [ 7155.409384] Server: Thread running [udp_server_start]
+emanuele-MacBookPro kernel: [ 7155.409390] Server: Created socket [udp_server_listen]
+emanuele-MacBookPro kernel: [ 7155.409411] Server: Socket is bind to 127.0.0.4 [udp_server_listen]
+emanuele-MacBookPro kernel: [ 7161.140902] Client: Initialized
+emanuele-MacBookPro kernel: [ 7161.140954] Client: Thread running [udp_server_start]
+emanuele-MacBookPro kernel: [ 7161.140969] Client: Created socket [udp_server_listen]
+emanuele-MacBookPro kernel: [ 7161.141355] Client: Socket is bind to 127.0.0.1 [udp_server_listen]
+emanuele-MacBookPro kernel: [ 7161.141444] Client: Sent message to 127.0.0.4 : 3000, size 6 [udp_server_send]
+emanuele-MacBookPro kernel: [ 7161.141456] Server: Received message from 127.0.0.1 : 3001 , size 6 [udp_server_receive]
+emanuele-MacBookPro kernel: [ 7161.141460] Server: Got HELLO
+emanuele-MacBookPro kernel: [ 7161.141490] Client: Received message from 127.0.0.4 : 3000 , size 3 [udp_server_receive]
+emanuele-MacBookPro kernel: [ 7161.141493] Server: Sent message to 127.0.0.1 : 3001, size 3 [udp_server_send]
+emanuele-MacBookPro kernel: [ 7161.141495] Client: Got OK
+emanuele-MacBookPro kernel: [ 7161.141496] Client: All done, terminating client [connection_handler]
+emanuele-MacBookPro kernel: [ 7162.702058] Client: Terminated thread [network_server_exit]
+emanuele-MacBookPro kernel: [ 7162.702060] Client: Module unloaded [network_server_exit]
+emanuele-MacBookPro kernel: [ 7164.674459] Server: Terminated thread [network_server_exit]
 ```
-<b>Tip:</b> If you want to have a dynamic view of the kern.log file, use this command `tail -f /var/log/kern.log`
+<b>Tip:</b> If you want to have a dynamic view of the kern.log file, use the command `tail -f /var/log/kern.log` or `dmesg -wH`
 
-By default, server connects on localhost on port 3000.<br> The socket is bind to any IP address of machine, if you want to change it change this line: <br> `server.sin_addr.s_addr = INADDR_ANY;`
+By default, server is bind to address 127.0.0.4, port 3000, while the client is bind to 127.0.0.1 port 3001.
 
 ## Parameters:
-On client, the server ip, server port and message length can be specified as module parameters
-when loading the module: `sudo insmod udp_client.ko destip=123.12.1.2 port=3000 len=49`
+On client, the server ip, server ip and port can be specified as module parameters
+when loading the module: `sudo insmod udp_client.ko myip=123.12.1.0 myport=2900 destip=123.12.1.2 destport=3000`
 
-On server, the server port and message length can be specified as module parameters
-when loading the module: <br> `sudo insmod udp_server.ko port=3000 len=49`
-
-<b> Warning: </b> Message length of both server and client should be equal, otherwise the receiver could get a truncated message. 
+On server, the server ip and port can be specified as module parameters
+when loading the module: <br> `sudo insmod udp_server.ko myip=123.12.1.2 port=3000`
 
 ## run.sh
 To fasten the loading / unloading of modules, I also created a script `run.sh`. This script calls `make`, `insmod`,
 wait a command to terminate and call `rmmod`.
 
 1. Give appropriate executing permission using `chmod`
-2. Run it `./run udp_client [destip=xxx.xxx.xxx.xxx] [port=xxxx] [len=xxx]`
+2. Run it `./run udp_client [destip=xxx.xxx.xxx.xxx] [port=xxxx]`
 3. Once unloaded the module, it will wait for `enter` or `ctrl-c` to either continue and unload the module or terminate.
 
 If the module is already running and this script is called, the module is unloaded first, recompiled, and loaded again.
