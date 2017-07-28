@@ -49,7 +49,7 @@ By default, server is bind to address 127.0.0.4, port 3000, while the client is 
 
 ## Parameters:
 On client, the server ip, server ip and port can be specified as module parameters
-when loading the module: `sudo insmod udp_client.ko myip=123.12.1.0 myport=2900 destip=123.12.1.2 destport=3000`
+when loading the module: <br> `sudo insmod udp_client.ko myip=123.12.1.0 myport=2900 destip=123.12.1.2 destport=3000`
 
 On server, the server ip and port can be specified as module parameters
 when loading the module: <br> `sudo insmod udp_server.ko myip=123.12.1.2 port=3000`
@@ -59,7 +59,7 @@ To fasten the loading / unloading of modules, I also created a script `run.sh`. 
 wait a command to terminate and call `rmmod`.
 
 1. Give appropriate executing permission using `chmod`
-2. Run it `./run udp_client [destip=xxx.xxx.xxx.xxx] [port=xxxx]`
+2. Run it `./run udp_client [destip=xxx.xxx.xxx.xxx] [port=xxxx] [all other parameters]`
 3. Once unloaded the module, it will wait for `enter` or `ctrl-c` to either continue and unload the module or terminate.
 
 If the module is already running and this script is called, the module is unloaded first, recompiled, and loaded again.
