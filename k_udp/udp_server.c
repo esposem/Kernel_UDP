@@ -1,8 +1,7 @@
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
-#include <net/udp.h>
+#include <linux/udp.h>
 #include <asm/atomic.h>
 #include <linux/time.h>
 #include <net/sock.h>

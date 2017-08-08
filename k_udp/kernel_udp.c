@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <net/inet_common.h>
 
 #include "kernel_udp.h"
 
@@ -112,7 +113,7 @@ int udp_server_receive(struct socket *sock, struct sockaddr_in *address, unsigne
   return lenm;
 }
 
-void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, int * myport){
+void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, int *  myport){
   int server_err;
   struct socket *conn_socket;
   struct sockaddr_in server;
@@ -141,7 +142,12 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
     atomic_set(&k->thread_running, 0);
     return;
   }else{
-    printk(KERN_INFO "%s Socket is bind to %d.%d.%d.%d [udp_server_listen]",k->name, *myip, *(myip +1), *(myip + 2), *(myip + 3) );
+    // get the actual random port and update myport
+    int i = (int) sizeof(struct sockaddr_in);
+    inet_getname(conn_socket, (struct sockaddr *) &server, &i , 0);
+    *myport = ntohs(server.sin_port);
+    // printk(KERN_INFO "socket port: %pI4, %hu", &address.sin_addr, ntohs(address.sin_port) );
+    printk(KERN_INFO "%s Socket is bind to %d.%d.%d.%d %d[udp_server_listen]",k->name, *myip, *(myip +1), *(myip + 2), *(myip + 3), *myport);
   }
 
   tv.tv_sec = 0;

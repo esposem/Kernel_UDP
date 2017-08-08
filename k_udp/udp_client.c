@@ -1,18 +1,16 @@
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
-#include <net/udp.h>
+#include <linux/udp.h>
 #include <asm/atomic.h>
 #include <linux/time.h>
 #include <net/sock.h>
-
 #include "kernel_udp.h"
 
 static unsigned char serverip[5] = {127,0,0,4,'\0'};
 static int serverport = 3000;
 static unsigned char myip[5] = {127,0,0,1,'\0'};
-static int myport = 3001;
+static int myport = 0; //random port
 
 module_param(myport, int, S_IRUGO);
 MODULE_PARM_DESC(myport,"The receiving port, default 3001");
@@ -35,8 +33,9 @@ int connection_handler(void *data)
 
   memset(out_buf, '\0', strlen(HELLO)+1);
   memcpy(out_buf, HELLO, strlen(HELLO));
-  
+
   udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
+
   while (1){
 
     if(kthread_should_stop() || signal_pending(current)){
