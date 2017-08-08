@@ -61,8 +61,10 @@ int connection_handler(void *data)
 int udp_server_listen(void)
 {
   udp_server_init(udp_client, &udpc_socket, myip, &myport);
-  connection_handler(NULL);
-  atomic_set(&udp_client->thread_running, 0);
+  if(atomic_read(&udp_client->thread_running) == 1){
+    connection_handler(NULL);
+    atomic_set(&udp_client->thread_running, 0);
+  }
   return 0;
 }
 
