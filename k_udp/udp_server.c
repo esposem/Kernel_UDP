@@ -81,7 +81,7 @@ int connection_handler(void *data)
   return 0;
 }
 
-int udp_server_listen(void)
+int server_listen(void)
 {
   udp_server_init(udp_server, &udps_socket, ipmy, &myport);
   if(atomic_read(&udp_server->thread_running) == 1){
@@ -91,31 +91,31 @@ int udp_server_listen(void)
   return 0;
 }
 
-void udp_server_start(void){
-  udp_server->u_thread = kthread_run((void *)udp_server_listen, NULL, udp_server->name);
+void server_start(void){
+  udp_server->u_thread = kthread_run((void *)server_listen, NULL, udp_server->name);
   if(udp_server->u_thread >= 0){
     atomic_set(&udp_server->thread_running,1);
-    printk(KERN_INFO "%s Thread running [udp_server_start]", udp_server->name);
+    printk(KERN_INFO "%s Thread running", udp_server->name);
   }else{
-    printk(KERN_INFO "%s Error in starting thread. Terminated [udp_server_start]", udp_server->name);
+    printk(KERN_INFO "%s Error in starting thread. Terminated", udp_server->name);
   }
 }
 
-static int __init network_server_init(void)
+static int __init server_init(void)
 {
   udp_server = kmalloc(sizeof(udp_service), GFP_KERNEL);
   if(!udp_server){
-    printk(KERN_INFO "Failed to initialize server [network_server_init]");
+    printk(KERN_INFO "Failed to initialize server");
   }else{
     check_params(ipmy, myip, margs);
     init_service(udp_server, "Server:");
-    udp_server_start();
+    server_start();
   }
   return 0;
 
 }
 
-static void __exit network_server_exit(void)
+static void __exit server_exit(void)
 {
   #if SPEED_TEST
   del_timer(&timer);
@@ -124,7 +124,7 @@ static void __exit network_server_exit(void)
   udp_server_quit(udp_server, udps_socket);
 }
 
-module_init(network_server_init)
-module_exit(network_server_exit)
+module_init(server_init)
+module_exit(server_exit)
 MODULE_LICENSE("MIT");
 MODULE_AUTHOR("Emanuele Giuseppe Esposito");

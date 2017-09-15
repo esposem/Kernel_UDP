@@ -99,7 +99,7 @@ int connection_handler(void *data)
     if(ret > 0){
       if(memcmp(in_buf, OK, strlen(OK)) == 0){
         printk(KERN_INFO "%s Got OK", udp_client->name);
-        printk(KERN_INFO "%s All done, terminating client [connection_handler]", udp_client->name);
+        printk(KERN_INFO "%s All done, terminating client", udp_client->name);
       }
     }
     #endif
@@ -110,7 +110,7 @@ int connection_handler(void *data)
   return 0;
 }
 
-int udp_server_listen(void)
+int client_listen(void)
 {
   udp_server_init(udp_client, &udpc_socket, ipmy, &myport);
   if(atomic_read(&udp_client->thread_running) == 1){
@@ -120,31 +120,31 @@ int udp_server_listen(void)
   return 0;
 }
 
-void udp_server_start(void){
-  udp_client->u_thread = kthread_run((void *)udp_server_listen, NULL, udp_client->name);
+void client_start(void){
+  udp_client->u_thread = kthread_run((void *)client_listen, NULL, udp_client->name);
   if(udp_client->u_thread >= 0){
     atomic_set(&udp_client->thread_running,1);
-    printk(KERN_INFO "%s Thread running [udp_server_start]", udp_client->name);
+    printk(KERN_INFO "%s Thread running", udp_client->name);
   }else{
-    printk(KERN_INFO "%s Error in starting thread. Terminated [udp_server_start]", udp_client->name);
+    printk(KERN_INFO "%s Error in starting thread. Terminated", udp_client->name);
   }
 }
 
-static int __init network_server_init(void)
+static int __init client_init(void)
 {
   udp_client = kmalloc(sizeof(udp_service), GFP_KERNEL);
   if(!udp_client){
-    printk(KERN_INFO "Failed to initialize CLIENT [network_server_init]");
+    printk(KERN_INFO "Failed to initialize CLIENT");
   }else{
     check_params(ipmy, myip, margs);
     check_params(serverip, destip, sargs);
     init_service(udp_client, "Client:");
-    udp_server_start();
+    client_start();
   }
   return 0;
 }
 
-static void __exit network_server_exit(void)
+static void __exit client_exit(void)
 {
   #if SPEED_TEST
   del_timer(&timer);
@@ -153,7 +153,7 @@ static void __exit network_server_exit(void)
   udp_server_quit(udp_client, udpc_socket);
 }
 
-module_init(network_server_init)
-module_exit(network_server_exit)
+module_init(client_init)
+module_exit(client_exit)
 MODULE_LICENSE("MIT");
 MODULE_AUTHOR("Emanuele Giuseppe Esposito");

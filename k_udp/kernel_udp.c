@@ -76,7 +76,7 @@ int udp_server_send(struct socket *sock, struct sockaddr_in *address, const char
 
       lenn = kernel_sendmsg(sock, &msg, &vec, min, min);
       #if PRINT_MESS
-        printk(KERN_INFO "%s Sent message to %pI4 : %hu, size %d [udp_server_send]",module_name, &address->sin_addr, ntohs(address->sin_port), lenn);
+        printk(KERN_INFO "%s Sent message to %pI4 : %hu, size %d",module_name, &address->sin_addr, ntohs(address->sin_port), lenn);
       #endif
     }
 
@@ -111,7 +111,7 @@ int udp_server_receive(struct socket *sock, struct sockaddr_in *address, unsigne
   if(lenm > 0){
     address = (struct sockaddr_in *) msg.msg_name;
     #if PRINT_MESS
-      printk(KERN_INFO "%s Received message from %pI4 : %hu , size %d [udp_server_receive]",k->name,&address->sin_addr, ntohs(address->sin_port), lenm);
+      printk(KERN_INFO "%s Received message from %pI4 : %hu , size %d ",k->name,&address->sin_addr, ntohs(address->sin_port), lenm);
     #endif
   }
 
@@ -126,12 +126,12 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
 
   server_err = sock_create(PF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
   if(server_err < 0){
-    printk(KERN_INFO "%s Error %d while creating socket [udp_server_listen]",k->name, server_err);
+    printk(KERN_INFO "%s Error %d while creating socket ",k->name, server_err);
     atomic_set(&k->thread_running, 0);
     return;
   }else{
     atomic_set(&k->socket_allocated, 1);
-    printk(KERN_INFO "%s Created socket [udp_server_listen]",k->name);
+    printk(KERN_INFO "%s Created socket ",k->name);
   }
 
   conn_socket = *s;
@@ -141,7 +141,7 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
 
   server_err = conn_socket->ops->bind(conn_socket, (struct sockaddr*)&server, sizeof(server));
   if(server_err < 0) {
-    printk(KERN_INFO "%s Error %d while binding socket [udp_server_listen]",k->name, server_err);
+    printk(KERN_INFO "%s Error %d while binding socket %pI4",k->name, server_err, &server.sin_addr);
     atomic_set(&k->socket_allocated, 0);
     sock_release(conn_socket);
     atomic_set(&k->thread_running, 0);
@@ -152,7 +152,7 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
     inet_getname(conn_socket, (struct sockaddr *) &server, &i , 0);
     *myport = ntohs(server.sin_port);
     // printk(KERN_INFO "socket port: %pI4, %hu", &address.sin_addr, ntohs(address.sin_port) );
-    printk(KERN_INFO "%s Socket is bind to %d.%d.%d.%d %d[udp_server_listen]",k->name, *myip, *(myip +1), *(myip + 2), *(myip + 3), *myport);
+    printk(KERN_INFO "%s Socket is bind to %pI4 %d",k->name, &server.sin_addr, *myport);
     tv.tv_sec = 0;
     tv.tv_usec = MAX_RCV_WAIT;
     kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVTIMEO, (char * )&tv, sizeof(tv));
@@ -180,20 +180,20 @@ void udp_server_quit(udp_service * k, struct socket * s){
     if(atomic_read(&k->thread_running) == 1){
       atomic_set(&k->thread_running, 0);
       if((ret = kthread_stop(k->u_thread)) == 0){
-        printk(KERN_INFO "%s Terminated thread [network_server_exit]", k->name);
+        printk(KERN_INFO "%s Terminated thread", k->name);
       }else{
-        printk(KERN_INFO "%s Error %d in terminating thread [network_server_exit]", k->name, ret);
+        printk(KERN_INFO "%s Error %d in terminating thread", k->name, ret);
       }
     }else{
-      printk(KERN_INFO "%s Thread was not running [network_server_exit]", k->name);
+      printk(KERN_INFO "%s Thread was not running", k->name);
     }
 
     if(atomic_read(&k->socket_allocated) == 1){
       atomic_set(&k->socket_allocated, 0);
       sock_release(s);
-      printk(KERN_INFO "%s Released socket [network_server_exit]", k->name);
+      printk(KERN_INFO "%s Released socket", k->name);
     }
-    printk(KERN_INFO "%s Module unloaded [network_server_exit]", k->name);
+    printk(KERN_INFO "%s Module unloaded", k->name);
     kfree(k->name);
     kfree(k);
   }else{
