@@ -53,10 +53,11 @@ int main(int argc, char **argv) {
     if (n < 0)
       error("ERROR in sendto");
 
+    printf("Waiting for response..\n");
     bzero(buf, BUFSIZE);
     n = recvfrom(sockfd, buf, BUFSIZE, 0, ((struct sockaddr *) &serveraddr), &serverlen);
     if (n < 0)
       error("ERROR in recvfrom");
-    printf("Echo from server: %s", buf);
+    printf("Server said: %s\n", buf);
     return 0;
 }

@@ -66,13 +66,15 @@ int connection_handler(void *data)
       atomic_inc(&rcv_pkt);
       total_packets++;
       #else
+      printk(KERN_INFO "Got a message, printing it: %s", in_buf);
       if(memcmp(in_buf, HELLO, strlen(HELLO)) == 0){
-        printk(KERN_INFO "%s Got HELLO", udp_server->name);
-        memset(out_buf, '\0', strlen(OK)+1);
-        memcpy(out_buf, OK, strlen(OK)+1);
-        udp_server_send(learner_socket, &address,out_buf, strlen(OK)+1, MSG_WAITALL, udp_server->name);
-        // return 0; // stop from looping
+        printk(KERN_INFO "%s recognized HELLO", udp_server->name);
+        // do something
       }
+      memset(out_buf, '\0', strlen(OK)+1);
+      memcpy(out_buf, OK, strlen(OK)+1);
+      udp_server_send(learner_socket, &address,out_buf, strlen(OK)+1, MSG_WAITALL, udp_server->name);
+      // return 0; // stop from looping
       #endif
     }
   }
