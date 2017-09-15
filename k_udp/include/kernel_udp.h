@@ -4,6 +4,8 @@
 #include <asm/atomic.h>
 #include <linux/udp.h>
 
+#define SPEED_TEST 1 // perform a speed test to know the speed limit of protocol
+#define PRINT_MESS 0 // print "received message by ... and sent message to ..."
 
 struct udp_service
 {
@@ -30,5 +32,7 @@ extern void udp_server_init(udp_service * k, struct socket ** s, unsigned char *
 extern void init_service(udp_service * k, char * name);
 extern void check_sock_allocation(udp_service * k, struct socket * s);
 extern void udp_server_quit(udp_service * k, struct socket * s);
+extern void check_params(unsigned char * dest, unsigned int * src, int arg);
+
 
 #endif

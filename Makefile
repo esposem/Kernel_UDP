@@ -1,21 +1,11 @@
 obj-m += udp_client.o
-obj-m += udp_client1.o
-obj-m += udp_client2.o
 obj-m += udp_server.o
 
-udp_server-objs:= \
+udp_server-y:= \
 	k_udp/udp_server.o \
 	k_udp/kernel_udp.o
 
-udp_client-objs:= \
-	k_udp/udp_client.o \
-	k_udp/kernel_udp.o
-
-udp_client1-objs:= \
-k_udp/udp_client.o \
-k_udp/kernel_udp.o
-
-udp_client2-objs:= \
+udp_client-y:= \
 	k_udp/udp_client.o \
 	k_udp/kernel_udp.o
 

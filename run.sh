@@ -6,18 +6,12 @@ if [ -z ${1} ]; then
   kill $$
 fi
 
+shift;
+
 path=$(dirname $filename)
 
 if sudo rmmod $filename.ko 2> /dev/null; then
   echo "Module was already present. Removed it"
-fi
-
-shift # discard first parameter
-clean="0"
-if [ "$1" = "-c" ]; then
-  echo "You set not to clean the log"
-  clean="1"
-  shift
 fi
 
 if cd $path > /dev/null && make > /dev/null && cd -  > /dev/null;then

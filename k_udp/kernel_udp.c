@@ -1,13 +1,22 @@
 #include <asm/atomic.h>
 #include <net/sock.h>
-#include <linux/kernel.h>
+// #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <net/inet_common.h>
-
 #include "kernel_udp.h"
 
-void check_params(int * len, udp_service * k);
+void check_params(unsigned char * dest, unsigned int * src, int arg){
+  if(arg != 4){
+    if(arg != 0)
+      printk(KERN_ERR "Ip not valid, using the default one");
+    return;
+  }
+  for (size_t i = 0; i < 4; i++) {
+    dest[0] = (char) src[0];
+  }
+  dest[4] = '\0';
+}
 
 u32 create_address(u8 *ip)
 {
@@ -66,7 +75,9 @@ int udp_server_send(struct socket *sock, struct sockaddr_in *address, const char
       npacket++;
 
       lenn = kernel_sendmsg(sock, &msg, &vec, min, min);
-      printk(KERN_INFO "%s Sent message to %pI4 : %hu, size %d [udp_server_send]",module_name, &address->sin_addr, ntohs(address->sin_port), lenn);
+      #if PRINT_MESS
+        printk(KERN_INFO "%s Sent message to %pI4 : %hu, size %d [udp_server_send]",module_name, &address->sin_addr, ntohs(address->sin_port), lenn);
+      #endif
     }
 
     set_fs(oldmm);
@@ -96,18 +107,12 @@ int udp_server_receive(struct socket *sock, struct sockaddr_in *address, unsigne
   vec.iov_len = MAX_UDP_SIZE;
   vec.iov_base = buf;
 
-  lenm = -EAGAIN;
-  while(lenm == -ERESTARTSYS || lenm == -EAGAIN){
-    if(kthread_should_stop() || signal_pending(current)){
-      check_sock_allocation(k, sock);
-      return 0;
-    }else{
-      lenm = kernel_recvmsg(sock, &msg, &vec, MAX_UDP_SIZE, MAX_UDP_SIZE, flags);
-      if(lenm > 0){
-        address = (struct sockaddr_in *) msg.msg_name;
-        printk(KERN_INFO "%s Received message from %pI4 : %hu , size %d [udp_server_receive]",k->name,&address->sin_addr, ntohs(address->sin_port), lenm);
-      }
-    }
+  lenm = kernel_recvmsg(sock, &msg, &vec, MAX_UDP_SIZE, MAX_UDP_SIZE, flags);
+  if(lenm > 0){
+    address = (struct sockaddr_in *) msg.msg_name;
+    #if PRINT_MESS
+      printk(KERN_INFO "%s Received message from %pI4 : %hu , size %d [udp_server_receive]",k->name,&address->sin_addr, ntohs(address->sin_port), lenm);
+    #endif
   }
 
   return lenm;
@@ -148,11 +153,15 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
     *myport = ntohs(server.sin_port);
     // printk(KERN_INFO "socket port: %pI4, %hu", &address.sin_addr, ntohs(address.sin_port) );
     printk(KERN_INFO "%s Socket is bind to %d.%d.%d.%d %d[udp_server_listen]",k->name, *myip, *(myip +1), *(myip + 2), *(myip + 3), *myport);
+    tv.tv_sec = 0;
+    tv.tv_usec = MAX_RCV_WAIT;
+    kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVTIMEO, (char * )&tv, sizeof(tv));
+    // seems not to change anything
+    // int k = INT_MAX;
+    // kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVBUF, (char * )&k, sizeof(int));
   }
 
-  tv.tv_sec = 0;
-  tv.tv_usec = MAX_RCV_WAIT;
-  kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVTIMEO, (char * )&tv, sizeof(tv));
+
 }
 
 void init_service(udp_service * k, char * name){
