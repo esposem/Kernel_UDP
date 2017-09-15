@@ -13,7 +13,7 @@ void check_params(unsigned char * dest, unsigned int * src, int arg){
     return;
   }
   for (size_t i = 0; i < 4; i++) {
-    dest[0] = (char) src[0];
+    dest[i] = (char) src[i];
   }
   dest[4] = '\0';
 }
