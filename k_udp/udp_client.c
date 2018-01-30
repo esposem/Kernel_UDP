@@ -47,12 +47,6 @@ void count_sec(unsigned long a){
 }
 #endif
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/fs.h>
-#include <asm/uaccess.h>
-#include <linux/mm.h>
-
 int connection_handler(void *data)
 {
   struct sockaddr_in address;
@@ -155,5 +149,5 @@ static void __exit client_exit(void)
 
 module_init(client_init)
 module_exit(client_exit)
-MODULE_LICENSE("MIT");
+MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Emanuele Giuseppe Esposito");

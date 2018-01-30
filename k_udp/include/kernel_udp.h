@@ -4,7 +4,7 @@
 #include <asm/atomic.h>
 #include <linux/udp.h>
 
-#define SPEED_TEST 0 // perform a speed test to know the speed limit of protocol
+#define SPEED_TEST 1 // perform a speed test to know the speed limit of protocol
 #define PRINT_MESS 0 // print "received message by ... and sent message to ..."
 
 struct udp_service

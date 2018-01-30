@@ -35,7 +35,7 @@ void count_sec(unsigned long a){
 }
 #endif
 
-int connection_handler(void *data)
+int connection_handler(void)
 {
   struct sockaddr_in address;
   struct socket *learner_socket = udps_socket;
@@ -85,7 +85,7 @@ int server_listen(void)
 {
   udp_server_init(udp_server, &udps_socket, ipmy, &myport);
   if(atomic_read(&udp_server->thread_running) == 1){
-    connection_handler(NULL);
+    connection_handler();
     atomic_set(&udp_server->thread_running, 0);
   }
   return 0;
@@ -126,5 +126,5 @@ static void __exit server_exit(void)
 
 module_init(server_init)
 module_exit(server_exit)
-MODULE_LICENSE("MIT");
+MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Emanuele Giuseppe Esposito");
