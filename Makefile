@@ -15,7 +15,7 @@ ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
-	make user_client
+	make user_udp/user_client user_udp/user_server
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-	rm user_client
+	rm user_udp/user_client user_udp/user_server

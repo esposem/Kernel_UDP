@@ -63,16 +63,25 @@ int connection_handler(void *data)
   memset(out_buf, '\0', strlen(HELLO)+1);
   memcpy(out_buf, HELLO, strlen(HELLO));
 
+  #if LATENCY_TEST
+    long long total = 0, counted = 0;
+    long average = 0;
+    struct timeval departure_time, arrival_time;
+    do_gettimeofday(&departure_time);
+  #endif
+
   #if SPEED_TEST
-  atomic_set(&sent_pkt, 0);
-  total_packets=0;
-  setup_timer( &timer,  count_sec, 0);
-  interval = (struct timeval) {1,0};
-  mod_timer(&timer, jiffies + timeval_to_jiffies(&interval));
-  printk("%s Performing a speed test: this module will count how many packets \
-  it sends", udp_client->name);
-  #else
-  udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
+    atomic_set(&sent_pkt, 0);
+    total_packets=0;
+    setup_timer( &timer,  count_sec, 0);
+    interval = (struct timeval) {1,0};
+    mod_timer(&timer, jiffies + timeval_to_jiffies(&interval));
+    printk("%s Performing a speed test: this module will count how many packets \
+    it sends", udp_client->name);
+  #endif
+
+  #if PRINT_MESS
+    udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
   #endif
 
   while (1){
@@ -84,17 +93,33 @@ int connection_handler(void *data)
       return 0;
     }
 
-    #if SPEED_TEST
+    #if SPEED_TEST || LATENCY_TEST
     udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
-    atomic_inc(&sent_pkt);
-    total_packets++;
-    #else
+      #if SPEED_TEST
+        atomic_inc(&sent_pkt);
+        total_packets++;
+      #endif
+    #endif
+
+    #if PRINT_MESS || LATENCY_TEST
     int ret = udp_server_receive(client_socket, &address, in_buf, MSG_WAITALL, udp_client);
-    if(ret > 0){
-      if(memcmp(in_buf, OK, strlen(OK)) == 0){
+    if(ret > 0 && memcmp(in_buf, OK, strlen(OK)) == 0){
+      #if PRINT_MESS
         printk(KERN_INFO "%s Got OK", udp_client->name);
         printk(KERN_INFO "%s All done, terminating client", udp_client->name);
-      }
+        check_sock_allocation(udp_client, client_socket);
+        kfree(in_buf);
+        kfree(out_buf);
+        break;
+      #else
+      do_gettimeofday(&arrival_time);
+      long res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
+      total += res;
+      counted++;
+      average = total/ counted;
+      printk(KERN_INFO "Latency: %ld microseconds, average %ld", res, average);
+      do_gettimeofday(&departure_time);
+      #endif
     }
     #endif
 
