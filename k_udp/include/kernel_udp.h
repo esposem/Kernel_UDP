@@ -4,9 +4,11 @@
 #include <asm/atomic.h>
 #include <linux/udp.h>
 
-#define THROUGHPUT_TEST 1 // perform a speed test to know the speed limit of protocol
-#define PRINT_MESS 0 // print "received message by ... and sent message to ..."
-#define LATENCY_TEST 0
+/* 0 is only one echo message HELLO-OK
+ * 1 is the THROUGHPUT test (client send, server receives)
+ * 2 is the LATENCY test, (multiple echo message HELLO-OK)
+*/
+#define TEST 2
 
 struct udp_service
 {
@@ -19,6 +21,7 @@ struct udp_service
 
 #define MAX_RCV_WAIT 100000 // in microseconds
 #define MAX_UDP_SIZE 65507
+#define MAX_MESS_SIZE 6 // HELLO + \0
 
 #define HELLO "HELLO"
 #define OK "OK"

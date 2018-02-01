@@ -75,9 +75,12 @@ int udp_server_send(struct socket *sock, struct sockaddr_in *address, const char
       npacket++;
 
       lenn = kernel_sendmsg(sock, &msg, &vec, min, min);
-      #if PRINT_MESS
-        printk(KERN_INFO "%s Sent message to %pI4 : %hu, size %d",module_name, &address->sin_addr, ntohs(address->sin_port), lenn);
+      #if TEST == 0
+        if(lenn > 0){
+          printk(KERN_INFO "%s Sent message to %pI4 : %hu, size %d",module_name, &address->sin_addr, ntohs(address->sin_port), lenn);
+        }
       #endif
+
     }
 
     set_fs(oldmm);
@@ -108,12 +111,12 @@ int udp_server_receive(struct socket *sock, struct sockaddr_in *address, unsigne
   vec.iov_base = buf;
 
   lenm = kernel_recvmsg(sock, &msg, &vec, MAX_UDP_SIZE, MAX_UDP_SIZE, flags);
-  if(lenm > 0){
-    address = (struct sockaddr_in *) msg.msg_name;
-    #if PRINT_MESS
+  #if TEST == 0
+    if(lenm > 0){
+      address = (struct sockaddr_in *) msg.msg_name;
       printk(KERN_INFO "%s Received message from %pI4 : %hu , size %d ",k->name,&address->sin_addr, ntohs(address->sin_port), lenm);
-    #endif
-  }
+    }
+  #endif
 
   return lenm;
 }

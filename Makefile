@@ -10,13 +10,14 @@ udp_client-y:= \
 	k_udp/kernel_udp.o
 
 EXTRA_CFLAGS:=  -I$(PWD)/k_udp/include
+TEST_FLAG:= -D TEST=2
 
 ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
-	cc -D TEST=1    user_udp/user_client.c   -o user_udp/user_client
-	cc -D TEST=1    user_udp/user_server.c   -o user_udp/user_server
+	cc $(TEST_FLAG) user_udp/user_client.c -o user_udp/user_client
+	cc $(TEST_FLAG) user_udp/user_server.c -o user_udp/user_server
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean

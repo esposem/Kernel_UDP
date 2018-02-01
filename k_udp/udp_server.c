@@ -22,17 +22,19 @@ MODULE_PARM_DESC(myport,"The receiving port, default 3000");
 static udp_service * udp_server;
 static struct socket * udps_socket;
 
-#if THROUGHPUT_TEST
-unsigned long long total_packets;
-atomic_t rcv_pkt;
-struct timer_list timer;
-struct timeval interval;
+#if TEST == 1
+unsigned long long received = 0, res, seconds = 0, rec_min =0;
+// atomic_t rec_min;
+// struct timer_list timer;
+// struct timeval interval;
+struct timeval departure_time;
+struct timeval arrival_time;
 
-void count_sec(unsigned long a){
-  printk(KERN_INFO "%s Received %d/sec",udp_server->name, atomic_read(&rcv_pkt));
-  atomic_set(&rcv_pkt, 0);
-  mod_timer(&timer, jiffies + timeval_to_jiffies(&interval));
-}
+// void count_sec(unsigned long a){
+//   printk(KERN_INFO "%s Received %d/sec",udp_server->name, atomic_read(&rec_min));
+//   atomic_set(&rec_min, 0);
+//   mod_timer(&timer, jiffies + timeval_to_jiffies(&interval));
+// }
 #endif
 
 int connection_handler(void)
@@ -41,13 +43,17 @@ int connection_handler(void)
   struct socket *learner_socket = udps_socket;
   int ret;
   unsigned char * in_buf = kmalloc(MAX_UDP_SIZE, GFP_KERNEL);
-  unsigned char * out_buf= kmalloc(strlen(OK) +1, GFP_KERNEL);
-  #if THROUGHPUT_TEST
-  atomic_set(&rcv_pkt, 0);
-  total_packets=0;
-  setup_timer( &timer,  count_sec, 0);
-  interval = (struct timeval) {1,0};
-  mod_timer(&timer, jiffies + timeval_to_jiffies(&interval));
+  unsigned char * out_buf = kmalloc(MAX_MESS_SIZE, GFP_KERNEL);
+  memset(out_buf, '\0', MAX_MESS_SIZE);
+  memcpy(out_buf, OK, strlen(OK)+1);
+
+  #if TEST == 1
+  // atomic_set(&rec_min, 0);
+  // received=0;
+  // setup_timer( &timer,  count_sec, 0);
+  // interval = (struct timeval) {1,0};
+  // mod_timer(&timer, jiffies + timeval_to_jiffies(&interval));
+  do_gettimeofday(&departure_time);
   printk("%s Performing a speed test: this module will count how many packets \
   it receives", udp_server->name);
   #endif
@@ -60,21 +66,32 @@ int connection_handler(void)
       kfree(out_buf);
       return 0;
     }
+
+    //in_buf gets cleaned inside
     ret = udp_server_receive(learner_socket, &address, in_buf, MSG_WAITALL,udp_server);
-    if(ret > 0){
-      #if THROUGHPUT_TEST
-      atomic_inc(&rcv_pkt);
-      total_packets++;
-      #else
-      if(memcmp(in_buf, HELLO, strlen(HELLO)) == 0){
-        #if PRINT_MESS
+    if(ret == MAX_MESS_SIZE && memcmp(in_buf, HELLO, MAX_MESS_SIZE) == 0){
+      #if TEST != 1
+        #if TEST == 0
           printk(KERN_INFO "%s Got a message: %s",udp_server->name, in_buf);
         #endif
-        // do something
-        memset(out_buf, '\0', strlen(OK)+1);
-        memcpy(out_buf, OK, strlen(OK)+1);
-        udp_server_send(learner_socket, &address,out_buf, strlen(OK)+1, MSG_WAITALL, udp_server->name);
-      }
+        udp_server_send(learner_socket, &address,out_buf, MAX_MESS_SIZE, MSG_WAITALL, udp_server->name);
+        #if TEST == 0
+          printk(KERN_INFO "%s Sent OK",udp_server->name);
+        #endif
+
+      #else
+        // atomic_inc(&rec_min);
+        // received++;
+        rec_min++;
+        do_gettimeofday(&arrival_time);
+        res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
+        if(res >= 1000000){
+          seconds++;
+          received +=rec_min;
+          printk(KERN_INFO "%s Received %llu/sec",udp_server->name, rec_min);
+          rec_min = 0;
+          do_gettimeofday(&departure_time);
+        }
       #endif
     }
   }
@@ -117,9 +134,9 @@ static int __init server_init(void)
 
 static void __exit server_exit(void)
 {
-  #if THROUGHPUT_TEST
-  del_timer(&timer);
-  printk(KERN_INFO "%s Received total of %llu packets", udp_server->name, total_packets);
+  #if TEST == 1
+    // del_timer(&timer);
+    printk(KERN_INFO "%s Received total of %llu packets", udp_server->name, received);
   #endif
   udp_server_quit(udp_server, udps_socket);
 }
