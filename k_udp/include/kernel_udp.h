@@ -7,6 +7,7 @@
 #define THROUGHPUT_TEST 1 // perform a speed test to know the speed limit of protocol
 #define PRINT_MESS 0 // print "received message by ... and sent message to ..."
 #define LATENCY_TEST 0
+
 struct udp_service
 {
   // struct socket * u_socket;
