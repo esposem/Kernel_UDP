@@ -17,6 +17,7 @@ struct sockaddr_in serv,cliaddr;
 
 #if TEST == 2
   unsigned long long total = 0,counted = 0;
+  int message_received = 1;
 #endif
 
 void sig_handler(int signo) {
@@ -82,15 +83,23 @@ int main(int argc,char *argv[]) {
     gettimeofday(&departure_time,NULL);
   #endif
 
+
   while(1){
     #if TEST != 0
-      // 1: send forever
-      // 2: send HELLO
-      if((sendto(sockfd,out_buf,strlen(HELLO)+1,0,(struct sockaddr *)&serv,sizeof(serv)))<0) {
-        perror("ERROR IN SENDTO");
-      }
-      #if TEST == 1
-        else{
+      #if TEST == 2
+        // 2: send HELLO
+        if(message_received){
+          if((sendto(sockfd,out_buf,strlen(HELLO)+1,0,(struct sockaddr *)&serv,sizeof(serv)))<0) {
+            perror("ERROR IN SENDTO");
+            exit(0);
+          }
+          message_received = 0;
+        }
+      #else
+        // 1: send HELLO forever
+        if((sendto(sockfd,out_buf,strlen(HELLO)+1,0,(struct sockaddr *)&serv,sizeof(serv)))<0) {
+          perror("ERROR IN SENDTO");
+        }else{
           sent_min++;
           gettimeofday(&arrival_time, NULL);
           res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
@@ -122,6 +131,7 @@ int main(int argc,char *argv[]) {
           average = (double)total/ (double)counted;
           printf("\rLATENCY: %llu microseconds \t Average %.2f",res, average );
           gettimeofday(&departure_time,NULL);
+          message_received = 1;
         #else
           // 0: exit
           printf("Client: Received %s (%d bytes) from %s:%s\n", in_buf, bytes_received, argv[1], argv[2]);

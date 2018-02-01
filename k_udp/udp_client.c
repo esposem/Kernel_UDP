@@ -76,6 +76,7 @@ int connection_handler(void *data)
 
   #if TEST == 2
     long long total = 0, counted = 0;
+    int message_received = 1;
   #endif
 
   #if TEST == 1
@@ -106,8 +107,13 @@ int connection_handler(void *data)
     }
 
     #if TEST != 0
-    udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
-      #if TEST == 1
+      #if TEST == 2
+        if(message_received){
+          udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
+          message_received = 0;
+        }
+      #else
+        udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
         // atomic_inc(&sent_pkt);
         // total_packets++;
         sent_min++;
@@ -136,6 +142,7 @@ int connection_handler(void *data)
           average = total/ counted;
           printk(KERN_INFO "Latency: %llu microseconds, average %llu", res, average);
           do_gettimeofday(&departure_time);
+          message_received = 1;
         #else
           printk(KERN_INFO "%s Got OK", udp_client->name);
           printk(KERN_INFO "%s All done, terminating client", udp_client->name);
