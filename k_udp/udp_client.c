@@ -21,7 +21,7 @@ MODULE_PARM_DESC(myport,"The receiving port, default is a free random one chosen
 
 //############## SERVER IP AND PORT (udp_server) #######
 static unsigned char serverip[5] = {127,0,0,4,'\0'};
-static unsigned int destip[5];//random port
+static unsigned int destip[5];
 static int sargs;
 module_param_array(destip, int, &sargs, S_IRUGO);
 MODULE_PARM_DESC(destip,"The server ip, default 127.0.0.1");
@@ -34,7 +34,7 @@ MODULE_PARM_DESC(destport,"The server port, default 3000");
 static udp_service * udp_client;
 static struct socket * udpc_socket;
 
-#if SPEED_TEST
+#if THROUGHPUT_TEST
 atomic_t sent_pkt;
 struct timer_list timer;
 struct timeval interval;
@@ -60,6 +60,17 @@ int connection_handler(void *data)
   address.sin_family = AF_INET;
   address.sin_port = htons(destport);
 
+  int res =  kernel_connect(client_socket, (struct sockaddr *)&address, sizeof(struct sockaddr),
+		   0);
+  if(res < 0){
+    printk(KERN_INFO "Error %d", -res);
+    check_sock_allocation(udp_client, client_socket);
+    atomic_set(&udp_client->thread_running, 0);
+    kfree(in_buf);
+    kfree(out_buf);
+    return 0;
+  }
+
   memset(out_buf, '\0', strlen(HELLO)+1);
   memcpy(out_buf, HELLO, strlen(HELLO));
 
@@ -70,7 +81,7 @@ int connection_handler(void *data)
     do_gettimeofday(&departure_time);
   #endif
 
-  #if SPEED_TEST
+  #if THROUGHPUT_TEST
     atomic_set(&sent_pkt, 0);
     total_packets=0;
     setup_timer( &timer,  count_sec, 0);
@@ -93,9 +104,9 @@ int connection_handler(void *data)
       return 0;
     }
 
-    #if SPEED_TEST || LATENCY_TEST
+    #if THROUGHPUT_TEST || LATENCY_TEST
     udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
-      #if SPEED_TEST
+      #if THROUGHPUT_TEST
         atomic_inc(&sent_pkt);
         total_packets++;
       #endif
@@ -131,7 +142,7 @@ int connection_handler(void *data)
 
 int client_listen(void)
 {
-  udp_server_init(udp_client, &udpc_socket, ipmy, &myport);
+  udp_server_init(udp_client, &udpc_socket, ipmy, myport);
   if(atomic_read(&udp_client->thread_running) == 1){
     connection_handler(NULL);
     atomic_set(&udp_client->thread_running, 0);
@@ -165,7 +176,7 @@ static int __init client_init(void)
 
 static void __exit client_exit(void)
 {
-  #if SPEED_TEST
+  #if THROUGHPUT_TEST
   del_timer(&timer);
   printk(KERN_INFO "%s Sent total of %llu packets",udp_client->name, total_packets);
   #endif

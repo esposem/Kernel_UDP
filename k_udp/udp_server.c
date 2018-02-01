@@ -22,7 +22,7 @@ MODULE_PARM_DESC(myport,"The receiving port, default 3000");
 static udp_service * udp_server;
 static struct socket * udps_socket;
 
-#if SPEED_TEST
+#if THROUGHPUT_TEST
 unsigned long long total_packets;
 atomic_t rcv_pkt;
 struct timer_list timer;
@@ -42,7 +42,7 @@ int connection_handler(void)
   int ret;
   unsigned char * in_buf = kmalloc(MAX_UDP_SIZE, GFP_KERNEL);
   unsigned char * out_buf= kmalloc(strlen(OK) +1, GFP_KERNEL);
-  #if SPEED_TEST
+  #if THROUGHPUT_TEST
   atomic_set(&rcv_pkt, 0);
   total_packets=0;
   setup_timer( &timer,  count_sec, 0);
@@ -62,7 +62,7 @@ int connection_handler(void)
     }
     ret = udp_server_receive(learner_socket, &address, in_buf, MSG_WAITALL,udp_server);
     if(ret > 0){
-      #if SPEED_TEST
+      #if THROUGHPUT_TEST
       atomic_inc(&rcv_pkt);
       total_packets++;
       #else
@@ -83,7 +83,7 @@ int connection_handler(void)
 
 int server_listen(void)
 {
-  udp_server_init(udp_server, &udps_socket, ipmy, &myport);
+  udp_server_init(udp_server, &udps_socket, ipmy, myport);
   if(atomic_read(&udp_server->thread_running) == 1){
     connection_handler();
     atomic_set(&udp_server->thread_running, 0);
@@ -117,7 +117,7 @@ static int __init server_init(void)
 
 static void __exit server_exit(void)
 {
-  #if SPEED_TEST
+  #if THROUGHPUT_TEST
   del_timer(&timer);
   printk(KERN_INFO "%s Received total of %llu packets", udp_server->name, total_packets);
   #endif

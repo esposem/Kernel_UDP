@@ -1,26 +1,44 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<sys/types.h>
-#include<netinet/in.h>
-#include<sys/socket.h>
-#include<string.h>
-#include<unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <signal.h>
 #include <arpa/inet.h>
-#include <netdb.h>
+#include <sys/time.h>
+#include <event2/event.h>
 #include "include/user_udp.h"
 
-int main(int argc,char *argv[]) {
+char buf[SIZE_BUFF];
+int sockfd,len,receivedbytes;
+struct sockaddr_in servaddr,cliaddr;
+struct sockaddr_storage client_address;
 
-  char buf[SIZE_BUFF];
-  int sockfd,len,receivedbytes;
-  struct sockaddr_in servaddr,cliaddr;
-  struct sockaddr_storage client_address;
+#if TEST == 1
+  long long received = 0, rec_min = 0, seconds = 0;
+  struct timeval departure_time,arrival_time;
+  unsigned long long res;
+  double average = 0;
+#endif
+
+void sig_handler(int signo) {
+  if (signo == SIGINT){
+    close(sockfd);
+    #if TEST == 1
+      printf("Total number of received packets: %llu\n", received);
+    #endif
+    printf("Server closed\n");
+  }
+  exit(0);
+}
+
+int main(int argc,char *argv[]) {
 
   if(argc != 2){
     printf("Usage: %s port\n",argv[0]);
     exit(0);
   }
+
+  signal(SIGINT, sig_handler);
 
   if((sockfd=socket(AF_INET,SOCK_DGRAM,0))<0)
   {
@@ -62,11 +80,8 @@ int main(int argc,char *argv[]) {
   }
 
   len=sizeof(struct sockaddr_storage);
-
   #if TEST == 1
-    long long received = 0;
-    long long rec_min = 0;
-    //TODO Implement timer
+    gettimeofday(&departure_time,NULL);
   #endif
 
   while(1) {
@@ -75,16 +90,16 @@ int main(int argc,char *argv[]) {
       perror("ERROR");
     }
 
-    memset(host, 0,NI_MAXHOST);
-    memset(service,0, NI_MAXSERV);
+    #if TEST != 1
+      if (receivedbytes == SIZE_BUFF && memcmp(HELLO, buf, SIZE_BUFF) == 0){
 
-    s = getnameinfo((struct sockaddr *) &client_address,
-                         len, host, NI_MAXHOST,
-                         service, NI_MAXSERV, NI_NUMERICSERV);
-
-    if (receivedbytes == SIZE_BUFF && memcmp(HELLO, buf, SIZE_BUFF) == 0){
-      #if TEST != 1
         #if TEST == 0
+          memset(host, 0,NI_MAXHOST);
+          memset(service,0, NI_MAXSERV);
+
+          s = getnameinfo((struct sockaddr *) &client_address,
+                               len, host, NI_MAXHOST,
+                               service, NI_MAXSERV, NI_NUMERICSERV);
           printf("Received %s (%ld bytes) from %s:%s\n", buf, (long) receivedbytes, host, service);
         #endif
         memset(buf, 0, SIZE_BUFF);
@@ -98,19 +113,26 @@ int main(int argc,char *argv[]) {
           #endif
           // break;
         }
-      #else
-        received++;
-      #endif
-    }else{
-      perror("Server: message incomplete\n");
-    }
-  }
+      }else{
+        perror("Server: message incomplete\n");
+      }
+    #else
+      else{
+        rec_min++;
+        gettimeofday(&arrival_time, NULL);
+        res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
+        if(res >= 1000000){
+          seconds ++;
+          received +=rec_min;
+          average = (double)received/(double)seconds;
+          printf("Total packages received in a second: %lld \t Average %f/sec\n",rec_min,average );
+          rec_min = 0;
+          gettimeofday(&departure_time, NULL);
+        }
+      }
+    #endif
 
-  close(sockfd);
-  #if TEST == 1
-    printf("Total number of received packets: %lu\n", received);
-  #endif
-  printf("Server closed\n");
+  }
 
   return 0;
 }

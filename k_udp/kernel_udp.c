@@ -118,7 +118,7 @@ int udp_server_receive(struct socket *sock, struct sockaddr_in *address, unsigne
   return lenm;
 }
 
-void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, int *  myport){
+void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, int myport){
   int server_err;
   struct socket *conn_socket;
   struct sockaddr_in server;
@@ -137,7 +137,7 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
   conn_socket = *s;
   server.sin_addr.s_addr = htonl(create_address(myip));
   server.sin_family = AF_INET;
-  server.sin_port = htons(*myport);
+  server.sin_port = htons(myport);
 
   server_err = conn_socket->ops->bind(conn_socket, (struct sockaddr*)&server, sizeof(server));
   if(server_err < 0) {
@@ -150,9 +150,9 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
     // get the actual random port and update myport
     int i = (int) sizeof(struct sockaddr_in);
     inet_getname(conn_socket, (struct sockaddr *) &server, &i , 0);
-    *myport = ntohs(server.sin_port);
+    myport = ntohs(server.sin_port);
     // printk(KERN_INFO "socket port: %pI4, %hu", &address.sin_addr, ntohs(address.sin_port) );
-    printk(KERN_INFO "%s Socket is bind to %pI4 %d",k->name, &server.sin_addr, *myport);
+    printk(KERN_INFO "%s Socket is bind to %pI4 %d",k->name, &server.sin_addr, myport);
     tv.tv_sec = 0;
     tv.tv_usec = MAX_RCV_WAIT;
     kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVTIMEO, (char * )&tv, sizeof(tv));
