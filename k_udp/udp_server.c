@@ -74,7 +74,7 @@ int connection_handler(void)
         #if TEST == 0
           printk(KERN_INFO "%s Got a message: %s",udp_server->name, in_buf);
         #endif
-        udp_server_send(learner_socket, &address,out_buf, MAX_MESS_SIZE, MSG_WAITALL, udp_server->name);
+        udp_server_send(learner_socket, &address,out_buf, MAX_MESS_SIZE, 0, udp_server->name);
         #if TEST == 0
           printk(KERN_INFO "%s Sent OK",udp_server->name);
         #endif
@@ -84,8 +84,8 @@ int connection_handler(void)
         // received++;
         rec_min++;
         do_gettimeofday(&arrival_time);
-        res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
-        if(res >= 1000000){
+        res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
+        if(res >= _100_MSEC){
           seconds++;
           received +=rec_min;
           printk(KERN_INFO "%s Received %llu/sec",udp_server->name, rec_min);

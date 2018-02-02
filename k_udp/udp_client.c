@@ -90,7 +90,7 @@ int connection_handler(void *data)
   #endif
 
   #if TEST == 0
-    udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
+    udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, 0, udp_client->name);
   #else
     unsigned long long average = 0,res;
     struct timeval departure_time, arrival_time;
@@ -109,34 +109,35 @@ int connection_handler(void *data)
     #if TEST != 0
       #if TEST == 2
         if(message_received){
-          udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
+          udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, 0, udp_client->name);
           message_received = 0;
         }
       #else
-        udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, MSG_WAITALL, udp_client->name);
-        // atomic_inc(&sent_pkt);
-        // total_packets++;
-        sent_min++;
-        do_gettimeofday(&arrival_time);
-        res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
-        if(res >= 1000000){
-          seconds ++;
-          sent +=sent_min;
-          // average = sent/seconds;
-          printk(KERN_INFO "%s\t \t \t Sent %lld/sec", udp_client->name, sent_min);
-          sent_min = 0;
-          do_gettimeofday(&departure_time);
+        if(udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, 0, udp_client->name) == MAX_MESS_SIZE){
+          // atomic_inc(&sent_pkt);
+          // total_packets++;
+          sent_min++;
+          do_gettimeofday(&arrival_time);
+          res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
+          if(res >= _100_MSEC){
+            seconds ++;
+            sent +=sent_min;
+            average = sent/seconds;
+            printk(KERN_INFO "%s\t \t \t Sent %lld/sec", udp_client->name, sent_min);
+            sent_min = 0;
+            do_gettimeofday(&departure_time);
+          }
         }
       #endif
     #endif
 
     #if TEST != 1
       // in_buf gets cleaned inside
-      int ret = udp_server_receive(client_socket, &address, in_buf, MSG_WAITALL, udp_client);
+      int ret = udp_server_receive(client_socket, &address, in_buf,MSG_WAITALL, udp_client);
       if(ret == MAX_MESS_SIZE && memcmp(in_buf, OK, strlen(OK)+1) == 0){
         #if TEST == 2
           do_gettimeofday(&arrival_time);
-          res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
+          res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
           total += res;
           counted++;
           average = total/ counted;

@@ -5,10 +5,11 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <signal.h>
+#include <limits.h>
 #include "include/user_udp.h"
 
 char * in_buf, * out_buf;
-int sockfd,len, bytes_received;
+int sockfd,len, bytes_received, bytes_sent;
 struct sockaddr_in serv,cliaddr;
 
 #if TEST == 1
@@ -24,7 +25,7 @@ void sig_handler(int signo) {
   if (signo == SIGINT){
     close(sockfd);
     #if TEST == 1
-      printf("Total number of sent packets: %llu\n", sent);
+      printf("Client: Total number of sent packets: %llu\n", sent);
     #endif
     printf("Client closed\n");
   }
@@ -42,7 +43,7 @@ int main(int argc,char *argv[]) {
   signal(SIGINT, sig_handler);
 
   if((sockfd=socket(AF_INET,SOCK_DGRAM,0))<0) {
-    perror("error creating socket");
+    perror("Error creating socket");
     exit(0);
   }
 
@@ -50,9 +51,13 @@ int main(int argc,char *argv[]) {
   struct timeval t;
   t.tv_sec = 0;
   t.tv_usec = 100000;
+  // int maxx = INT_MAX;
 
   setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
              &t, sizeof(t));
+
+  // setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
+  //             &maxx, sizeof(int));
 
   memset(&serv,0,sizeof(serv));
   serv.sin_family=AF_INET;
@@ -97,17 +102,18 @@ int main(int argc,char *argv[]) {
         }
       #else
         // 1: send HELLO forever
-        if((sendto(sockfd,out_buf,strlen(HELLO)+1,0,(struct sockaddr *)&serv,sizeof(serv)))<0) {
+        bytes_sent = sendto(sockfd,out_buf,strlen(HELLO)+1,0,(struct sockaddr *)&serv,sizeof(serv));
+        if(bytes_sent < 0) {
           perror("ERROR IN SENDTO");
-        }else{
+        }else if(bytes_sent == MAX_MESS_SIZE){
           sent_min++;
           gettimeofday(&arrival_time, NULL);
-          res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
-          if(res >= 1000000){
+          res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
+          if(res >= _100_MSEC){
             seconds ++;
             sent +=sent_min;
             average = (double)sent/(double)seconds;
-            printf("Total package sent in a second: %lld \t Average %f/sec\n",sent_min,average );
+            printf("Client:Total packages sent in a second: %lld \t Average %.2f/sec\n",sent_min,average );
             sent_min = 0;
             gettimeofday(&departure_time, NULL);
           }
@@ -125,11 +131,11 @@ int main(int argc,char *argv[]) {
         #if TEST == 2
           // 2: calculate LATENCY
           gettimeofday(&arrival_time,NULL);
-          res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
+          res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
           total += res;
           counted ++;
           average = (double)total/ (double)counted;
-          printf("\rLATENCY: %llu microseconds \t Average %.2f",res, average );
+          printf("\rClient LATENCY: %llu microseconds \t Average %.2f",res, average );
           gettimeofday(&departure_time,NULL);
           message_received = 1;
         #else

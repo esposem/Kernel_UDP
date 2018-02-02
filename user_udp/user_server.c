@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 #include <event2/event.h>
+#include <limits.h>
 #include "include/user_udp.h"
 
 char * in_buf, * out_buf;
@@ -51,9 +52,12 @@ int main(int argc,char *argv[]) {
   struct timeval t;
   t.tv_sec = 0;
   t.tv_usec = MAX_RCV_WAIT;
-
+  // int maxx = INT_MAX;
   setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
              &t, sizeof(t));
+
+  // setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
+  //           &maxx, sizeof(maxx));
 
   printf("Server: UDP Socket Created Successfully.\n");
 
@@ -117,8 +121,8 @@ int main(int argc,char *argv[]) {
       #else
         rec_min++;
         gettimeofday(&arrival_time, NULL);
-        res = (arrival_time.tv_sec * 1000000 + arrival_time.tv_usec) - (departure_time.tv_sec * 1000000 + departure_time.tv_usec );
-        if(res >= 1000000){
+        res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
+        if(res >= _100_MSEC){
           seconds ++;
           received +=rec_min;
           average = (double)received/(double)seconds;

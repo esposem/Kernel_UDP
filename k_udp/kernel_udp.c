@@ -41,7 +41,7 @@ void check_sock_allocation(udp_service * k, struct socket * s){
   }
 }
 
-// returns the number of packets sent
+// returns how many bytes are sent
 // need to memset buffer to \0 before
 // and copy data in buffer
 int udp_server_send(struct socket *sock, struct sockaddr_in *address, const char *buf, const size_t buffer_size, unsigned long flags, \
@@ -49,7 +49,7 @@ int udp_server_send(struct socket *sock, struct sockaddr_in *address, const char
 {
     struct msghdr msg;
     struct kvec vec;
-    int lenn, min, npacket =0;
+    int lenn, min, npacket =0, totbytes = 0;
     int l = buffer_size;
 
     mm_segment_t oldmm;
@@ -74,18 +74,23 @@ int udp_server_send(struct socket *sock, struct sockaddr_in *address, const char
       buf += min;
       npacket++;
 
-      lenn = kernel_sendmsg(sock, &msg, &vec, min, min);
-      #if TEST == 0
-        if(lenn > 0){
+      lenn = kernel_sendmsg(sock, &msg, &vec, sizeof(vec), min);
+      if(lenn > 0){
+        totbytes+=lenn;
+        #if TEST == 0
           printk(KERN_INFO "%s Sent message to %pI4 : %hu, size %d",module_name, &address->sin_addr, ntohs(address->sin_port), lenn);
+        #endif
+      }
+      #if TEST == 0
+        else{
+          printk(KERN_INFO "ERROR IN SENDMSG");
         }
       #endif
-
     }
 
     set_fs(oldmm);
 
-    return npacket;
+    return totbytes;
 }
 
 // buff MUST be MAX_UDP_SIZE big, so it can intercept any sized packet
@@ -110,7 +115,7 @@ int udp_server_receive(struct socket *sock, struct sockaddr_in *address, unsigne
   vec.iov_len = MAX_UDP_SIZE;
   vec.iov_base = buf;
 
-  lenm = kernel_recvmsg(sock, &msg, &vec, MAX_UDP_SIZE, MAX_UDP_SIZE, flags);
+  lenm = kernel_recvmsg(sock, &msg, &vec, sizeof(vec), MAX_UDP_SIZE, flags);
   #if TEST == 0
     if(lenm > 0){
       address = (struct sockaddr_in *) msg.msg_name;

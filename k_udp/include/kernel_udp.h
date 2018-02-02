@@ -22,6 +22,7 @@ struct udp_service
 #define MAX_RCV_WAIT 100000 // in microseconds
 #define MAX_UDP_SIZE 65507
 #define MAX_MESS_SIZE 6 // HELLO + \0
+#define _100_MSEC 1000000
 
 #define HELLO "HELLO"
 #define OK "OK"
