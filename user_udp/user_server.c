@@ -35,8 +35,8 @@ void sig_handler(int signo) {
 
 int main(int argc,char *argv[]) {
 
-  if(argc != 2){
-    printf("Usage: %s port\n",argv[0]);
+  if(argc != 3){
+    printf("Usage: %s ipaddress port\n",argv[0]);
     exit(0);
   }
 
@@ -63,8 +63,8 @@ int main(int argc,char *argv[]) {
 
   bzero(&servaddr,sizeof(servaddr));
   servaddr.sin_family=AF_INET;
-  servaddr.sin_port=htons(atoi(argv[1]));
-  servaddr.sin_addr.s_addr=htonl(INADDR_ANY);
+  servaddr.sin_port=htons(atoi(argv[2]));
+  servaddr.sin_addr.s_addr=inet_addr(argv[1]);
 
   if(bind(sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr))<0)
   {
@@ -79,7 +79,7 @@ int main(int argc,char *argv[]) {
   //                      service, NI_MAXSERV, NI_NUMERICSERV);
 
   // if (s == 0){
-    printf("Server: Bind on any ip of this machine in port %s.\n", argv[1]);
+    printf("Server: Bind on %s:%s.\n", argv[1], argv[2]);
   // }else{
     // perror("Server: Could not get my address\n");
   // }
