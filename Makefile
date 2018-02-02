@@ -10,7 +10,7 @@ udp_client-y:= \
 	k_udp/kernel_udp.o
 
 EXTRA_CFLAGS:=  -I$(PWD)/k_udp/include
-TEST_FLAG:= -D TEST=2
+TEST_FLAG:= -D TEST=1
 
 ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 

@@ -133,7 +133,7 @@ int connection_handler(void *data)
 
     #if TEST != 1
       // in_buf gets cleaned inside
-      int ret = udp_server_receive(client_socket, &address, in_buf,MSG_WAITALL, udp_client);
+      int ret = udp_server_receive(client_socket, &address, in_buf,MSG_WAITALL , udp_client);
       if(ret == MAX_MESS_SIZE && memcmp(in_buf, OK, strlen(OK)+1) == 0){
         #if TEST == 2
           do_gettimeofday(&arrival_time);

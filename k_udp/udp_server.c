@@ -68,7 +68,7 @@ int connection_handler(void)
     }
 
     //in_buf gets cleaned inside
-    ret = udp_server_receive(learner_socket, &address, in_buf, MSG_WAITALL,udp_server);
+    ret = udp_server_receive(learner_socket, &address, in_buf, 0,udp_server);
     if(ret == MAX_MESS_SIZE && memcmp(in_buf, HELLO, MAX_MESS_SIZE) == 0){
       #if TEST != 1
         #if TEST == 0
