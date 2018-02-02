@@ -24,6 +24,8 @@ struct sockaddr_in serv,cliaddr;
 void sig_handler(int signo) {
   if (signo == SIGINT){
     close(sockfd);
+    free(in_buf);
+    free(out_buf);
     #if TEST == 1
       printf("Client: Total number of sent packets: %llu\n", sent);
     #endif
