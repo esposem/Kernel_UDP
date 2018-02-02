@@ -74,15 +74,15 @@ int main(int argc,char *argv[]) {
 
   char host[NI_MAXHOST], service[NI_MAXSERV];
 
-  int s = getnameinfo((struct sockaddr *) &servaddr,
-                       sizeof(servaddr), host, NI_MAXHOST,
-                       service, NI_MAXSERV, NI_NUMERICSERV);
+  // int s = getnameinfo((struct sockaddr *) &servaddr,
+  //                      sizeof(servaddr), host, NI_MAXHOST,
+  //                      service, NI_MAXSERV, NI_NUMERICSERV);
 
-  if (s == 0){
-    printf("Server: Bind on %s in any port.\n", host);
-  }else{
-    perror("Server: Could not get my address\n");
-  }
+  // if (s == 0){
+    printf("Server: Bind on any ip of this machine in port %s.\n", argv[1]);
+  // }else{
+    // perror("Server: Could not get my address\n");
+  // }
 
   len=sizeof(struct sockaddr_storage);
   in_buf = malloc(MAX_UDP_SIZE);
