@@ -35,6 +35,8 @@ void sig_handler(int signo) {
 
 int main(int argc,char *argv[]) {
 
+  char host[NI_MAXHOST], service[NI_MAXSERV];
+
   if(argc != 3){
     printf("Usage: %s ipaddress port\n",argv[0]);
     exit(0);
@@ -72,17 +74,7 @@ int main(int argc,char *argv[]) {
       exit(0);
   }
 
-  char host[NI_MAXHOST], service[NI_MAXSERV];
-
-  // int s = getnameinfo((struct sockaddr *) &servaddr,
-  //                      sizeof(servaddr), host, NI_MAXHOST,
-  //                      service, NI_MAXSERV, NI_NUMERICSERV);
-
-  // if (s == 0){
-    printf("Server: Bind on %s:%s.\n", argv[1], argv[2]);
-  // }else{
-    // perror("Server: Could not get my address\n");
-  // }
+  printf("Server: Bind on %s:%s.\n", argv[1], argv[2]);
 
   len=sizeof(struct sockaddr_storage);
   in_buf = malloc(MAX_UDP_SIZE);
@@ -111,7 +103,7 @@ int main(int argc,char *argv[]) {
         #endif
 
         if((sendto(sockfd,out_buf,receivedbytes,0,(struct sockaddr *)&client_address,len))<0){
-            perror("CANNOT SENT BACK");
+            perror("CANNOT REPLY BACK");
         }else{
           #if TEST == 0
             printf("Server: Sent OK\n");
@@ -121,8 +113,8 @@ int main(int argc,char *argv[]) {
       #else
         rec_min++;
         gettimeofday(&arrival_time, NULL);
-        res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
-        if(res >= _100_MSEC){
+        res = (arrival_time.tv_sec * _1_SEC + arrival_time.tv_usec) - (departure_time.tv_sec * _1_SEC + departure_time.tv_usec );
+        if(res >= _1_SEC){
           seconds ++;
           received +=rec_min;
           average = (double)received/(double)seconds;

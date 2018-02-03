@@ -10,6 +10,11 @@ udp_client-y:= \
 	k_udp/kernel_udp.o
 
 EXTRA_CFLAGS:=  -I$(PWD)/k_udp/include
+
+
+	#  0 is only one echo message HELLO-OK
+	#  1 is the THROUGHPUT test (client send, server receives)
+	#  2 is the LATENCY test, (multiple echo message HELLO-OK)
 TEST_FLAG:= -D TEST=2
 
 ccflags-y := -std=gnu99 -Wno-declaration-after-statement

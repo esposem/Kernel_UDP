@@ -119,8 +119,8 @@ int connection_handler(void *data)
           // total_packets++;
           sent_min++;
           do_gettimeofday(&arrival_time);
-          res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
-          if(res >= _100_MSEC){
+          res = ((arrival_time.tv_sec * _1_SEC)+ arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
+          if(res >= _1_SEC){
             seconds ++;
             sent +=sent_min;
             division(sent,seconds, average, sizeof(average));
@@ -134,11 +134,11 @@ int connection_handler(void *data)
 
     #if TEST != 1
       // in_buf gets cleaned inside
-      int ret = udp_server_receive(client_socket, &address, in_buf,MSG_WAITALL , udp_client);
+      int ret = udp_server_receive(client_socket, &address, in_buf,0 , udp_client);
       if(ret == MAX_MESS_SIZE && memcmp(in_buf, OK, strlen(OK)+1) == 0){
         #if TEST == 2
           do_gettimeofday(&arrival_time);
-          res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
+          res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
           total += res;
           counted++;
           division(total,counted, average, sizeof(average));

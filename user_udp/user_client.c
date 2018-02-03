@@ -110,8 +110,8 @@ int main(int argc,char *argv[]) {
         }else if(bytes_sent == MAX_MESS_SIZE){
           sent_min++;
           gettimeofday(&arrival_time, NULL);
-          res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
-          if(res >= _100_MSEC){
+          res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
+          if(res >= _1_SEC){
             seconds ++;
             sent +=sent_min;
             average = (double)sent/(double)seconds;
@@ -133,7 +133,7 @@ int main(int argc,char *argv[]) {
         #if TEST == 2
           // 2: calculate LATENCY
           gettimeofday(&arrival_time,NULL);
-          res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
+          res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
           total += res;
           counted ++;
           average = (double)total/ (double)counted;

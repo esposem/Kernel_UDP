@@ -84,10 +84,11 @@ int connection_handler(void)
         // received++;
         rec_min++;
         do_gettimeofday(&arrival_time);
-        res = (arrival_time.tv_sec * _100_MSEC + arrival_time.tv_usec) - (departure_time.tv_sec * _100_MSEC + departure_time.tv_usec );
-        if(res >= _100_MSEC){
+        res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
+        if(res >= _1_SEC){
           seconds++;
           received +=rec_min;
+          // can use seconds and received to calculate average
           printk(KERN_INFO "%s Received %llu/sec",udp_server->name, rec_min);
           rec_min = 0;
           do_gettimeofday(&departure_time);

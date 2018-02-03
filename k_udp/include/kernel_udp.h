@@ -19,10 +19,10 @@ struct udp_service
   atomic_t socket_allocated;//1 yes 0 no
 };
 
-#define MAX_RCV_WAIT 100000 // in microseconds
+#define MAX_RCV_WAIT 100000 // 100 ms in microseconds
 #define MAX_UDP_SIZE 65507
 #define MAX_MESS_SIZE 6 // HELLO + \0
-#define _100_MSEC 1000000
+#define _1_SEC 1000000
 
 #define HELLO "HELLO"
 #define OK "OK"
