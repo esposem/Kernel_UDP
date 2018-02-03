@@ -37,8 +37,8 @@ void sig_handler(int signo) {
 
 int main(int argc,char *argv[]) {
 
-  if(argc != 3){
-    printf("Usage: %s ipaddress port\n",argv[0]);
+  if(argc != 5){
+    printf("Usage: %s ipaddress port serveraddress serverport\n",argv[0]);
     exit(0);
   }
 
@@ -61,10 +61,23 @@ int main(int argc,char *argv[]) {
   // setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF,
   //             &maxx, sizeof(int));
 
+  bzero(&cliaddr,sizeof(cliaddr));
+  cliaddr.sin_family=AF_INET;
+  cliaddr.sin_port=htons(atoi(argv[2]));
+  cliaddr.sin_addr.s_addr=inet_addr(argv[1]);
+
+  if(bind(sockfd,(struct sockaddr *)&cliaddr,sizeof(cliaddr))<0)
+  {
+      perror("Error binding socket.");
+      exit(0);
+  }
+
+  printf("Client: Bind on %s:%s.\n", argv[1], argv[2]);
+
   memset(&serv,0,sizeof(serv));
   serv.sin_family=AF_INET;
-  serv.sin_port=htons(atoi(argv[2]));
-  serv.sin_addr.s_addr=inet_addr(argv[1]);
+  serv.sin_port=htons(atoi(argv[4]));
+  serv.sin_addr.s_addr=inet_addr(argv[3]);
 
   if((connect(sockfd, (struct sockaddr *)&serv,sizeof(serv))) < 0) {
     perror("ERROR connecting to server");
