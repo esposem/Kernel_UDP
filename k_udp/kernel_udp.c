@@ -33,6 +33,31 @@ u32 create_address(u8 *ip)
   return addr;
 }
 
+// result must be at least 256 characters!
+void division(size_t dividend, size_t divisor, char * result, size_t size_res){
+  // printk(KERN_INFO "%zu / %zu", dividend, divisor);
+  size_t r = (dividend*1000/divisor);
+  char str[size_res];
+  memset(str, '\0', size_res);
+  memset(result, '\0', size_res);
+  int x = snprintf(str, size_res, "%zu", r);//sprintf(str, "%d", r);
+  int i = 0,additional = 1;
+  for (; i < x-3; i++) {
+    result[i] = str[i];
+  }
+  if(i == 0){
+    result[i] = '0';
+    additional++;
+    result[i+1] = ',';
+  }else{
+    result[i] = ',';
+  }
+  for (; i < x; i++) {
+    result[i+additional] = str[i];
+  }
+  // printk(KERN_INFO "in float %s\n", result);
+}
+
 void check_sock_allocation(udp_service * k, struct socket * s){
   if(atomic_read(&k->socket_allocated) == 1){
     // printk(KERN_INFO "%s Released socket",k->name);

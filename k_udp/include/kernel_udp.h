@@ -8,7 +8,7 @@
  * 1 is the THROUGHPUT test (client send, server receives)
  * 2 is the LATENCY test, (multiple echo message HELLO-OK)
 */
-#define TEST 1
+#define TEST 2
 
 struct udp_service
 {
@@ -38,6 +38,6 @@ extern void init_service(udp_service * k, char * name);
 extern void check_sock_allocation(udp_service * k, struct socket * s);
 extern void udp_server_quit(udp_service * k, struct socket * s);
 extern void check_params(unsigned char * dest, unsigned int * src, int arg);
-
+extern void division(size_t dividend, size_t divisor, char * result, size_t size_res);
 
 #endif
