@@ -97,10 +97,11 @@ int main(int argc,char *argv[]) {
     }
     printf("Client: sent HELLO\n");
   #else
-    struct timeval departure_time,arrival_time;
+    struct timeval departure_time,arrival_time, seconds_time;
     double average = 0;
     unsigned long long res;
     gettimeofday(&departure_time,NULL);
+    gettimeofday(&seconds_time,NULL);
   #endif
 
 
@@ -150,7 +151,11 @@ int main(int argc,char *argv[]) {
           total += res;
           counted ++;
           average = (double)total/ (double)counted;
-          printf("\rClient LATENCY: %llu microseconds \t Average %.2f",res, average );
+          res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((seconds_time.tv_sec * _1_SEC) + seconds_time.tv_usec );
+          if(res >= _1_SEC){
+            printf("\rClient Latency average is %.3f", average );
+            gettimeofday(&seconds_time, NULL);
+          }
           gettimeofday(&departure_time,NULL);
           message_received = 1;
         #else

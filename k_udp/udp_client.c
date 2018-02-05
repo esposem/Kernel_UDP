@@ -95,8 +95,7 @@ int connection_handler(void *data)
     unsigned long long res;
     int ret;
     char average[256];
-    struct timeval departure_time, arrival_time;
-    struct timeval seconds_time;
+    struct timeval departure_time, arrival_time, seconds_time;
     do_gettimeofday(&departure_time);
     do_gettimeofday(&seconds_time);
   #endif
