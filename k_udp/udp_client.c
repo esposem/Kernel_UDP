@@ -93,9 +93,12 @@ int connection_handler(void *data)
     udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, 0, udp_client->name);
   #else
     unsigned long long res;
+    int ret;
     char average[256];
     struct timeval departure_time, arrival_time;
+    struct timeval seconds_time;
     do_gettimeofday(&departure_time);
+    do_gettimeofday(&seconds_time);
   #endif
 
   while (1){
@@ -134,7 +137,7 @@ int connection_handler(void *data)
 
     #if TEST != 1
       // in_buf gets cleaned inside
-      int ret = udp_server_receive(client_socket, &address, in_buf,0 , udp_client);
+      ret = udp_server_receive(client_socket, &address, in_buf,0 , udp_client);
       if(ret == MAX_MESS_SIZE && memcmp(in_buf, OK, strlen(OK)+1) == 0){
         #if TEST == 2
           do_gettimeofday(&arrival_time);
@@ -142,7 +145,11 @@ int connection_handler(void *data)
           total += res;
           counted++;
           division(total,counted, average, sizeof(average));
-          printk(KERN_INFO "%s Latency: %llu microseconds, average %s",udp_client->name, res, average);
+          res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((seconds_time.tv_sec * _1_SEC) + seconds_time.tv_usec );
+          if(res >= _1_SEC){
+            printk(KERN_INFO "%s Latency average is %s",udp_client->name, average);
+            do_gettimeofday(&seconds_time);
+          }
           do_gettimeofday(&departure_time);
           message_received = 1;
         #else
