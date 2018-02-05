@@ -156,8 +156,9 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
   struct socket *conn_socket;
   struct sockaddr_in server;
   struct timeval tv;
+  mm_segment_t fs;
 
-  server_err = sock_create(PF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
+  server_err = sock_create_kern(&init_net, AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
   if(server_err < 0){
     printk(KERN_INFO "%s Error %d while creating socket ",k->name, server_err);
     atomic_set(&k->thread_running, 0);
@@ -188,7 +189,10 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
     printk(KERN_INFO "%s Socket is bind to %pI4 %d",k->name, &server.sin_addr, myport);
     tv.tv_sec = 0;
     tv.tv_usec = MAX_RCV_WAIT;
+    fs = get_fs();
+	  set_fs(KERNEL_DS);
     kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVTIMEO, (char * )&tv, sizeof(tv));
+    set_fs(fs);
     // seems not to change anything
     // int k = INT_MAX;
     // kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVBUF, (char * )&k, sizeof(int));
