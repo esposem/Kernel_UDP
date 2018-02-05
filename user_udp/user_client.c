@@ -153,7 +153,7 @@ int main(int argc,char *argv[]) {
           average = (double)total/ (double)counted;
           res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((seconds_time.tv_sec * _1_SEC) + seconds_time.tv_usec );
           if(res >= _1_SEC){
-            printf("\rClient Latency average is %.3f", average );
+            printf("Client Latency average is %.3f\n", average );
             gettimeofday(&seconds_time, NULL);
           }
           gettimeofday(&departure_time,NULL);
