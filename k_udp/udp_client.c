@@ -20,7 +20,7 @@ MODULE_PARM_DESC(myport,"The receiving port, default is a free random one chosen
 //######################################################
 
 //############## SERVER IP AND PORT (udp_server) #######
-static unsigned char serverip[5] = {127,0,0,4,'\0'};
+static unsigned char serverip[5] = {127,0,0,1,'\0'};
 static unsigned int destip[5];
 static int sargs;
 module_param_array(destip, int, &sargs, S_IRUGO);

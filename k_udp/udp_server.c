@@ -8,8 +8,8 @@
 #include "kernel_udp.h"
 
 //############## SERVER IP AND PORT (this module) #######
-static unsigned char ipmy[5] = {127,0,0,4,'\0'};
-static unsigned int myip[5];//random port
+static unsigned char ipmy[5] = {127,0,0,1,'\0'};
+static unsigned int myip[5];
 static int margs;
 module_param_array(myip, int, &margs, S_IRUGO);
 MODULE_PARM_DESC(myip,"The server ip, default 127.0.0.4");
