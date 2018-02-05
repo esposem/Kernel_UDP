@@ -87,13 +87,14 @@ int connection_handler(void *data)
     // mod_timer(&timer, jiffies + timeval_to_jiffies(&interval));
     printk("%s Performing a speed test: this module will count how many packets \
     it sends", udp_client->name);
+  #else
+    int ret;
   #endif
 
   #if TEST == 0
     udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, 0, udp_client->name);
   #else
     unsigned long long res;
-    int ret;
     char average[256];
     struct timeval departure_time, arrival_time, seconds_time;
     do_gettimeofday(&departure_time);

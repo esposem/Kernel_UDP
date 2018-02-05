@@ -5,12 +5,6 @@
 #include <linux/udp.h>
 #include <linux/version.h>
 
-/* 0 is only one echo message HELLO-OK
- * 1 is the THROUGHPUT test (client send, server receives)
- * 2 is the LATENCY test, (multiple echo message HELLO-OK)
-*/
-#define TEST 2
-
 struct udp_service
 {
   // struct socket * u_socket;

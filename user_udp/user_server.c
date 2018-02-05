@@ -96,7 +96,7 @@ int main(int argc,char *argv[]) {
           memset(host, 0,NI_MAXHOST);
           memset(service,0, NI_MAXSERV);
 
-          s = getnameinfo((struct sockaddr *) &client_address,
+          int s = getnameinfo((struct sockaddr *) &client_address,
                                len, host, NI_MAXHOST,
                                service, NI_MAXSERV, NI_NUMERICSERV);
           printf("Server: Received %s (%d bytes) from %s:%s\n", in_buf, receivedbytes, host, service);
