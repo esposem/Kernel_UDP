@@ -160,7 +160,8 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,2,0)
     server_err = sock_create_kern(&init_net, AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
   #else
-  server_err = sock_create_kern(AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
+    server_err = sock_create_kern(AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
+  #endif
   if(server_err < 0){
     printk(KERN_INFO "%s Error %d while creating socket ",k->name, server_err);
     atomic_set(&k->thread_running, 0);

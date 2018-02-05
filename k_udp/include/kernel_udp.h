@@ -3,6 +3,7 @@
 
 #include <asm/atomic.h>
 #include <linux/udp.h>
+#include <linux/version.h>
 
 /* 0 is only one echo message HELLO-OK
  * 1 is the THROUGHPUT test (client send, server receives)
