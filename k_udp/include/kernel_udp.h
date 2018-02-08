@@ -1,7 +1,7 @@
 #ifndef KERN_UDP
 #define KERN_UDP
 
-#include <asm/atomic.h>
+// #include <asm/atomic.h>
 #include <linux/udp.h>
 #include <linux/version.h>
 
@@ -14,25 +14,46 @@ struct udp_service
   atomic_t socket_allocated;//1 yes 0 no
 };
 
-#define MAX_RCV_WAIT 100000 // 100 ms in microseconds
-#define MAX_UDP_SIZE 65507
-#define MAX_MESS_SIZE 6 // HELLO + \0
-#define _1_SEC 1000000
+struct message_data{
+  size_t mess_len;
+  unsigned char mess_data[0];
+};
 
-#define HELLO "HELLO"
-#define OK "OK"
+enum operations {
+  PRINT,
+  TROUGHPUT,
+  LATENCY
+};
 
 typedef struct udp_service udp_service;
+typedef struct message_data message_data;
 
-extern void _send_message(struct socket * s, struct sockaddr_in * a, unsigned char * buff, int p, char * data, int len, char * module_name);
-extern int udp_server_send(struct socket *sock, struct sockaddr_in *address, const char *buf, const size_t length, unsigned long flags, char * module_name);
-extern int udp_server_receive(struct socket *sock, struct sockaddr_in *address, unsigned char *buf, unsigned long flags, udp_service * k);
+#define MAX_UDP_SIZE 65507
+#define _1_SEC 1000000
+
+#define REQUEST "HELLO"
+#define REPLY "OK"
+// sometimes the rcv blocks for less than 1 sec, so allow this error
+#define ABS_ERROR 2000
+
+extern int MAX_MESS_SIZE;
+extern message_data * request;
+extern message_data *  reply;
+
+extern void init_messages(void);
+extern void construct_header(struct msghdr * msg, struct sockaddr_in * address);
 extern u32 create_address(u8 *ip);
+
+extern int udp_send(struct socket *sock, struct msghdr * header, void * buff, size_t size_buff);
+extern int udp_receive(struct socket *sock, struct msghdr * header, void * buff, size_t size_buff);
+
 extern void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, int myport);
 extern void init_service(udp_service * k, char * name);
-extern void check_sock_allocation(udp_service * k, struct socket * s);
 extern void udp_server_quit(udp_service * k, struct socket * s);
+
+extern void check_sock_allocation(udp_service * k, struct socket * s);
 extern void check_params(unsigned char * dest, unsigned int * src, int arg);
+extern void check_operation(enum operations * operation, char * operations);
 extern void division(size_t dividend, size_t divisor, char * result, size_t size_res);
 
 #endif

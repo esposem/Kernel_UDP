@@ -8,4 +8,10 @@
 #define MAX_RCV_WAIT 100000 // in microseconds
 #define _1_SEC 1000000
 
+enum operations {
+  PRINT,
+  THROUGHPUT,
+  LATENCY
+};
+
 #endif

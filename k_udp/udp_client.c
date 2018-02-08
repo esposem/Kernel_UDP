@@ -1,11 +1,12 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
-#include <linux/udp.h>
-#include <asm/atomic.h>
-#include <linux/time.h>
-#include <net/sock.h>
+// #include <linux/udp.h>
+// #include <asm/atomic.h>
+// #include <linux/time.h>
+// #include <net/sock.h>
 #include "kernel_udp.h"
+#include "kclient_operations.h"
 
 //############## CLIENT IP AND PORT (this module) #######
 static unsigned char ipmy[5] = {127,0,0,1,'\0'};
@@ -31,147 +32,75 @@ module_param(destport, int, S_IRUGO);
 MODULE_PARM_DESC(destport,"The server port, default 3000");
 //######################################################
 
-static udp_service * udp_client;
-static struct socket * udpc_socket;
+//############## Types of operation #######
+static char * opt = "p";
+static enum operations operation = PRINT;
+module_param(opt, charp, S_IRUGO);
+MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Latency");
 
-#if TEST == 1
-  unsigned long long sent = 0, sent_min = 0, seconds = 0;
+static unsigned long us = 1;
+module_param(us,long, S_IRUGO);
+MODULE_PARM_DESC(us,"Fraction of second between a send and the next (Throughput mode only)");
+//######################################################
 
-// atomic_t sent_pkt;
-// struct timer_list timer;
-// struct timeval interval;
-// unsigned long long total_packets;
+udp_service * udp_client;
+struct socket * udpc_socket;
 
-// void count_sec(unsigned long a){
-//   printk(KERN_INFO "%s\t \t \t Sent %d/sec", udp_client->name, atomic_read(&sent_pkt));
-//   atomic_set(&sent_pkt, 0);
-//   mod_timer(&timer, jiffies + timeval_to_jiffies(&interval));
-// }
-#endif
+int connection_handler(void) {
 
-int connection_handler(void *data)
-{
-  struct sockaddr_in address;
-  struct socket *client_socket = udpc_socket;
+  struct sockaddr_in dest_addr;
+  struct msghdr hdr;
 
-  unsigned char * in_buf = kmalloc(MAX_UDP_SIZE, GFP_KERNEL);
-  unsigned char * out_buf = kmalloc(strlen(HELLO)+1, GFP_KERNEL);
-  memset(out_buf, '\0', strlen(HELLO)+1);
-  memcpy(out_buf, HELLO, strlen(HELLO));
+  init_messages();
+  message_data * rcv_buff = kmalloc(sizeof(message_data) + MAX_UDP_SIZE, GFP_KERNEL);
+  message_data * send_buff = kmalloc(sizeof(message_data) + MAX_MESS_SIZE, GFP_KERNEL);
 
-  address.sin_addr.s_addr = htonl(create_address(serverip));
-  address.sin_family = AF_INET;
-  address.sin_port = htons(destport);
+  rcv_buff->mess_len = MAX_UDP_SIZE;
+  send_buff->mess_len = MAX_MESS_SIZE;
+  memset(send_buff->mess_data, '\0', send_buff->mess_len);
+  memcpy(send_buff->mess_data, request->mess_data, request->mess_len);
 
-  int resc =  kernel_connect(client_socket, (struct sockaddr *)&address, sizeof(struct sockaddr),
-		   0);
+  dest_addr.sin_addr.s_addr = htonl(create_address(serverip));
+  dest_addr.sin_family = AF_INET;
+  dest_addr.sin_port = htons(destport);
+
+  construct_header(&hdr, &dest_addr);
+
+  #if 0
+  int resc =  kernel_connect(client_socket, (struct sockaddr *)&dest_addr, sizeof(struct sockaddr),0);
   if(resc < 0){
     printk(KERN_INFO "Error %d", -resc);
     check_sock_allocation(udp_client, client_socket);
     atomic_set(&udp_client->thread_running, 0);
-    kfree(in_buf);
-    kfree(out_buf);
+    kfree(rcv_buff);
+    kfree(send_buff);
     return 0;
   }
-
-  #if TEST == 2
-    long long total = 0, counted = 0;
-    int message_received = 1;
   #endif
 
-  #if TEST == 1
-    // atomic_set(&sent_pkt, 0);
-    // total_packets=0;
-    // setup_timer( &timer,  count_sec, 0);
-    // interval = (struct timeval) {1,0};
-    // mod_timer(&timer, jiffies + timeval_to_jiffies(&interval));
-    printk("%s Performing a speed test: this module will count how many packets \
-    it sends", udp_client->name);
-  #else
-    int ret;
-  #endif
-
-  #if TEST == 0
-    udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, 0, udp_client->name);
-  #else
-    unsigned long long res;
-    char average[256];
-    struct timeval departure_time, arrival_time, seconds_time;
-    do_gettimeofday(&departure_time);
-    do_gettimeofday(&seconds_time);
-  #endif
-
-  while (1){
-
-    if(kthread_should_stop() || signal_pending(current)){
-      check_sock_allocation(udp_client, client_socket);
-      kfree(in_buf);
-      kfree(out_buf);
-      return 0;
-    }
-
-    #if TEST != 0
-      #if TEST == 2
-        if(message_received){
-          udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, 0, udp_client->name);
-          message_received = 0;
-        }
-      #else
-        if(udp_server_send(client_socket, &address, out_buf, strlen(out_buf)+1, 0, udp_client->name) == MAX_MESS_SIZE){
-          // atomic_inc(&sent_pkt);
-          // total_packets++;
-          sent_min++;
-          do_gettimeofday(&arrival_time);
-          res = ((arrival_time.tv_sec * _1_SEC)+ arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
-          if(res >= _1_SEC){
-            seconds ++;
-            sent +=sent_min;
-            division(sent,seconds, average, sizeof(average));
-            printk(KERN_INFO "%s\t \t \t Sent %lld/sec", udp_client->name, sent_min);
-            sent_min = 0;
-            do_gettimeofday(&departure_time);
-          }
-        }
-      #endif
-    #endif
-
-    #if TEST != 1
-      // in_buf gets cleaned inside
-      ret = udp_server_receive(client_socket, &address, in_buf,0 , udp_client);
-      if(ret == MAX_MESS_SIZE && memcmp(in_buf, OK, strlen(OK)+1) == 0){
-        #if TEST == 2
-          do_gettimeofday(&arrival_time);
-          res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
-          total += res;
-          counted++;
-          division(total,counted, average, sizeof(average));
-          res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((seconds_time.tv_sec * _1_SEC) + seconds_time.tv_usec );
-          if(res >= _1_SEC){
-            printk(KERN_INFO "%s Latency average is %s",udp_client->name, average);
-            do_gettimeofday(&seconds_time);
-          }
-          do_gettimeofday(&departure_time);
-          message_received = 1;
-        #else
-          printk(KERN_INFO "%s Got OK", udp_client->name);
-          printk(KERN_INFO "%s All done, terminating client", udp_client->name);
-          check_sock_allocation(udp_client, client_socket);
-          kfree(in_buf);
-          kfree(out_buf);
-          break;
-        #endif
-      }
-    #endif
+  switch(operation){
+    case LATENCY:
+      latency(rcv_buff, send_buff, reply, &hdr);
+      break;
+    case TROUGHPUT:
+      troughput(send_buff, &hdr, us);
+      break;
+    default:
+      print(rcv_buff, send_buff, reply, &hdr);
+      break;
   }
+
+  check_sock_allocation(udp_client, udpc_socket);
+  kfree(rcv_buff);
+  kfree(send_buff);
 
   return 0;
 }
 
-int client_listen(void)
-{
+int client_listen(void) {
   udp_server_init(udp_client, &udpc_socket, ipmy, myport);
   if(atomic_read(&udp_client->thread_running) == 1){
-    connection_handler(NULL);
+    connection_handler();
     atomic_set(&udp_client->thread_running, 0);
   }
   return 0;
@@ -187,27 +116,29 @@ void client_start(void){
   }
 }
 
-static int __init client_init(void)
-{
+static int __init client_init(void) {
   udp_client = kmalloc(sizeof(udp_service), GFP_KERNEL);
   if(!udp_client){
     printk(KERN_INFO "Failed to initialize CLIENT");
   }else{
     check_params(ipmy, myip, margs);
     check_params(serverip, destip, sargs);
+    check_operation(&operation, opt);
     init_service(udp_client, "Client:");
+    printk(KERN_INFO "%s opt: %c, us: %lu\n",udp_client->name, opt[0], us);
     client_start();
   }
   return 0;
 }
 
-static void __exit client_exit(void)
-{
-  #if TEST == 1
-  // del_timer(&timer);
-  printk(KERN_INFO "%s Sent total of %llu packets",udp_client->name, sent);
-  #endif
+static void __exit client_exit(void) {
+  size_t len = strlen(udp_client->name)+1;
+  char prints[len];
+  memcpy(prints,udp_client->name,len);
   udp_server_quit(udp_client, udpc_socket);
+  if(operation == TROUGHPUT){
+    printk(KERN_INFO "%s Sent total of %llu packets",prints, sent);
+  }
 }
 
 module_init(client_init)

@@ -1,10 +1,13 @@
 #include <asm/atomic.h>
 #include <net/sock.h>
-// #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <net/inet_common.h>
 #include "kernel_udp.h"
+
+int MAX_MESS_SIZE;
+message_data * request;
+message_data * reply;
 
 void check_params(unsigned char * dest, unsigned int * src, int arg){
   if(arg != 4){
@@ -16,6 +19,14 @@ void check_params(unsigned char * dest, unsigned int * src, int arg){
     dest[i] = (char) src[i];
   }
   dest[4] = '\0';
+}
+
+void check_operation(enum operations * operation, char * op){
+  if(op[0] == 'l' || op[0] == 'L'){
+    *operation = LATENCY;
+  }else if(op[0] == 't' || op[0] == 'T'){
+    *operation = TROUGHPUT;
+  }
 }
 
 u32 create_address(u8 *ip)
@@ -33,29 +44,23 @@ u32 create_address(u8 *ip)
   return addr;
 }
 
-// result must be at least 256 characters!
+void init_messages(void){
+  size_t size_req = strlen(REQUEST)+1;
+  size_t size_repl = strlen(REPLY)+1;
+  request = kmalloc(sizeof(message_data)+ size_req, GFP_KERNEL);
+  reply = kmalloc(sizeof(message_data)+ size_repl, GFP_KERNEL);
+
+  request->mess_len = size_req;
+  reply->mess_len = size_repl;
+  memcpy(reply->mess_data, REPLY, size_repl);
+  memcpy(request->mess_data, REQUEST, size_req);
+
+  MAX_MESS_SIZE = max(size_req,size_repl);
+}
+
+
 void division(size_t dividend, size_t divisor, char * result, size_t size_res){
-  // printk(KERN_INFO "%zu / %zu", dividend, divisor);
-  size_t r = (dividend*1000/divisor);
-  char str[size_res];
-  memset(str, '\0', size_res);
-  memset(result, '\0', size_res);
-  int x = snprintf(str, size_res, "%zu", r);//sprintf(str, "%d", r);
-  int i = 0,additional = 1;
-  for (; i < x-3; i++) {
-    result[i] = str[i];
-  }
-  if(i == 0){
-    result[i] = '0';
-    additional++;
-    result[i+1] = ',';
-  }else{
-    result[i] = ',';
-  }
-  for (; i < x; i++) {
-    result[i+additional] = str[i];
-  }
-  // printk(KERN_INFO "in float %s\n", result);
+  snprintf(result, size_res, "%zu.%zu", dividend/divisor, (dividend*1000/divisor)%1000);
 }
 
 void check_sock_allocation(udp_service * k, struct socket * s){
@@ -66,89 +71,65 @@ void check_sock_allocation(udp_service * k, struct socket * s){
   }
 }
 
-// returns how many bytes are sent
-// need to memset buffer to \0 before
-// and copy data in buffer
-int udp_server_send(struct socket *sock, struct sockaddr_in *address, const char *buf, const size_t buffer_size, unsigned long flags, \
-   char * module_name)
-{
-    struct msghdr msg;
-    struct kvec vec;
-    int lenn, min, npacket =0, totbytes = 0;
-    int l = buffer_size;
+void construct_header(struct msghdr * msg, struct sockaddr_in * address){
 
-    mm_segment_t oldmm;
-
-    msg.msg_name    = address;
-    msg.msg_namelen = sizeof(struct sockaddr_in);
-    msg.msg_control = NULL;
-    msg.msg_controllen = 0;
-    msg.msg_flags = flags;
-
-    oldmm = get_fs(); set_fs(KERNEL_DS);
-
-    while(l > 0){
-      if(l < MAX_UDP_SIZE){
-        min = l;
-      }else{
-        min = MAX_UDP_SIZE;
-      }
-      vec.iov_len = min;
-      vec.iov_base = (char *)buf;
-      l -= min;
-      buf += min;
-      npacket++;
-
-      lenn = kernel_sendmsg(sock, &msg, &vec, sizeof(vec), min);
-      if(lenn > 0){
-        totbytes+=lenn;
-        #if TEST == 0
-          printk(KERN_INFO "%s Sent message to %pI4 : %hu, size %d",module_name, &address->sin_addr, ntohs(address->sin_port), lenn);
-        #endif
-      }
-      #if TEST == 0
-        else{
-          printk(KERN_INFO "ERROR IN SENDMSG");
-        }
-      #endif
-    }
-
-    set_fs(oldmm);
-
-    return totbytes;
+  msg->msg_name    = address;
+  msg->msg_namelen = sizeof(struct sockaddr_in);
+  msg->msg_control = NULL;
+  msg->msg_controllen = 0;
+  msg->msg_flags = 0; // this is set after receiving a message
 }
 
-// buff MUST be MAX_UDP_SIZE big, so it can intercept any sized packet
-// returns the amount of data that has received
-// no need to memset buffer to \0 before
-int udp_server_receive(struct socket *sock, struct sockaddr_in *address, unsigned char *buf, unsigned long flags,\
-    udp_service * k)
-{
-  struct msghdr msg;
+// returns how many bytes are sent
+int udp_send(struct socket *sock, struct msghdr * header, void * buff, size_t size_buff) {
+
   struct kvec vec;
-  int lenm;
+  int sent, size_pkt, totbytes = 0;
+  long long buffer_size = size_buff;
+  char * buf = (char *) buff;
 
-  memset(address, 0, sizeof(struct sockaddr_in));
-  memset(buf, '\0', MAX_UDP_SIZE);
+  mm_segment_t oldmm;
 
-  msg.msg_name = address;
-  msg.msg_namelen = sizeof(struct sockaddr_in);
-  msg.msg_control = NULL;
-  msg.msg_controllen = 0;
-  msg.msg_flags = flags;
-
-  vec.iov_len = MAX_UDP_SIZE;
-  vec.iov_base = buf;
-
-  lenm = kernel_recvmsg(sock, &msg, &vec, sizeof(vec), MAX_UDP_SIZE, flags);
-  #if TEST == 0
-    if(lenm > 0){
-      address = (struct sockaddr_in *) msg.msg_name;
-      printk(KERN_INFO "%s Received message from %pI4 : %hu , size %d ",k->name,&address->sin_addr, ntohs(address->sin_port), lenm);
+  while(buffer_size > 0){
+    if(buffer_size < MAX_UDP_SIZE){
+      size_pkt = buffer_size;
+    }else{
+      size_pkt = MAX_UDP_SIZE;
     }
-  #endif
 
-  return lenm;
+    vec.iov_len = size_pkt;
+    vec.iov_base = buf;
+
+    buffer_size -= size_pkt;
+    buf += size_pkt;
+
+    oldmm = get_fs(); set_fs(KERNEL_DS);
+    sent = kernel_sendmsg(sock, header, &vec, 1, size_pkt);
+    set_fs(oldmm);
+
+    totbytes+=sent;
+  }
+
+  return totbytes;
+}
+
+// returns the amount of data that has received
+int udp_receive(struct socket *sock, struct msghdr * header, void * buff, size_t size_buff){
+  struct kvec vec;
+  mm_segment_t oldmm;
+  int res;
+
+  vec.iov_len = size_buff;
+  vec.iov_base = buff;
+
+
+  oldmm = get_fs(); set_fs(KERNEL_DS);
+  // MSG_DONTWAIT: nonblocking operation: as soon as the packet is read, the call returns
+  // MSG_WAITALL: blocks until it does not receive size_buff bytes OR the SO_RCVTIMEO expires.
+  res =  kernel_recvmsg(sock, header, &vec, 1, size_buff, MSG_WAITALL);
+  set_fs(oldmm);
+
+  return res;
 }
 
 void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, int myport){
@@ -157,6 +138,7 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
   struct sockaddr_in server;
   struct timeval tv;
   mm_segment_t fs;
+
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,2,0)
     server_err = sock_create_kern(&init_net, AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
   #else
@@ -188,20 +170,14 @@ void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, 
     int i = (int) sizeof(struct sockaddr_in);
     inet_getname(conn_socket, (struct sockaddr *) &server, &i , 0);
     myport = ntohs(server.sin_port);
-    // printk(KERN_INFO "socket port: %pI4, %hu", &address.sin_addr, ntohs(address.sin_port) );
-    printk(KERN_INFO "%s Socket is bind to %pI4 %d",k->name, &server.sin_addr, myport);
-    tv.tv_sec = 0;
-    tv.tv_usec = MAX_RCV_WAIT;
+    printk(KERN_INFO "%s Socket is bind to %pI4:%d\n",k->name, &server.sin_addr, myport);
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
     fs = get_fs();
 	  set_fs(KERNEL_DS);
     kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVTIMEO, (char * )&tv, sizeof(tv));
     set_fs(fs);
-    // seems not to change anything
-    // int k = INT_MAX;
-    // kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVBUF, (char * )&k, sizeof(int));
   }
-
-
 }
 
 void init_service(udp_service * k, char * name){
@@ -225,7 +201,7 @@ void udp_server_quit(udp_service * k, struct socket * s){
         printk(KERN_INFO "%s Error %d in terminating thread", k->name, ret);
       }
     }else{
-      printk(KERN_INFO "%s Thread was not running", k->name);
+      printk(KERN_INFO "%s Thread was already stopped", k->name);
     }
 
     if(atomic_read(&k->socket_allocated) == 1){
