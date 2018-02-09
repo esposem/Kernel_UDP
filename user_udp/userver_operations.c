@@ -49,7 +49,7 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
       memcpy(&departure_time, &arrival_time, size_tmval);
       seconds++;
       received +=rec_sec;
-      average = received/seconds;
+      average = (double)received/seconds;
       printf("Server: Received %llu/sec, Average %.3f\n", rec_sec, average);
       rec_sec = 0;
     }

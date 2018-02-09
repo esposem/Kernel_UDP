@@ -47,7 +47,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
     if(seconds_counter >= _1_SEC){
       seconds++;
       sent+=sent_sec;
-      average = sent/seconds;
+      average = (double)sent/seconds;
       printf("Client: Sent %lld/sec, Average %.3f\n", sent_sec, average);
       sent_sec = 0;
       seconds_counter = 0;
@@ -107,7 +107,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
       one_sec += diff_time;
       correctly_received++;
       loop_closed = 1;
-      average = total_latency / correctly_received;
+      average = (double)total_latency /correctly_received;
     }else if(bytes_received < 0){ // nothing received
       one_sec = _1_SEC;
     }
