@@ -121,6 +121,8 @@ static void __exit client_exit(void) {
   udp_server_quit(udp_client, udpc_socket);
   if(operation == TROUGHPUT){
     printk(KERN_INFO "%s Sent total of %llu packets",prints, sent);
+    // flush
+    printk(KERN_INFO "\n");
   }
 }
 
