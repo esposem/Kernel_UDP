@@ -15,7 +15,7 @@ udp_client-y:= \
 USER_FLAGS:= -I$(PWD)/user_udp/include -O2
 EXTRA_CFLAGS:=  -I$(PWD)/kern_udp/include -O2  # $(ADDITIONAL_FLAG)
 
-ccflags-y := -std=gnu99 -Wno-declaration-after-statement
+ccflags-y:= -std=gnu99 -Wno-declaration-after-statement
 
 I_DIR:= user_udp
 USER_CL_OBJ:=user_client.o user_udp.o uclient_operations.o
@@ -31,7 +31,7 @@ all: user_client user_server
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 %.o: $(I_DIR)/%.c $(USER_CL_HEAD) $(USER_SERV_HEAD)
-	$(CC) $(USER_FLAGS) -c $< -o $@
+	$(CC) $(USER_FLAGS) $(ccflags-y:) -c $< -o $@
 
 user_client: $(USER_CL_OBJ)
 	$(CC) $(USER_FLAGS) -o $@ $^
