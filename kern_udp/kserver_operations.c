@@ -81,6 +81,9 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
     return;
   }
 
+  printk("%s Latency test\n", udp_server->name);
+
+
   while(1){
 
     if(kthread_should_stop() || signal_pending(current)){

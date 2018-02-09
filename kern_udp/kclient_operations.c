@@ -153,7 +153,7 @@ void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_c
     return;
   }
 
-  printk("%s Performing a simple test: this module will send %s and will wait to receive %s from server\n", udp_client->name, send_data, recv_data);
+  printk("%s Performing a simple test: this module will send %s and will wait to receive %s from server\n", udp_client->name, send_data, "OK");
 
   if((bytes_sent = udp_send(udpc_socket, &hdr, send_data, send_size)) == send_size){
     address = hdr.msg_name;

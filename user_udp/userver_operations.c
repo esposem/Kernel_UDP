@@ -80,6 +80,9 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
     return;
   }
 
+  printf("Server: Latency test\n");
+
+
   while(stop){
 
     fill_hdr(&hdr, iov, recv_data,recv_size);

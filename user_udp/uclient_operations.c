@@ -135,6 +135,8 @@ void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_c
     printf("Client: Error, receiving buffer size is smaller than expected message\n");
     return;
   }
+  printf("Client: Performing a simple test: this module will send %s and will wait to receive %s from server\n", send_data, "OK");
+
 
   struct msghdr hdr;
   struct iovec iov[1];
