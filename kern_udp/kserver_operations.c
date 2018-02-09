@@ -3,13 +3,16 @@
 
 unsigned long long received = 0;
 
-void troughput(message_data * rcv_buf, message_data * rcv_check, struct msghdr * hdr){
+void troughput(message_data * rcv_buf, message_data * rcv_check){
 
   struct timeval departure_time, arrival_time;
   unsigned long long diff_time, rec_sec = 0, seconds = 0;
   int time_interval = _1_SEC - ABS_ERROR;
 
   char average[256];
+  average[0] = '0';
+  average[1] = '\0';
+
   int bytes_received;
   char * recv_data = rcv_buf->mess_data, \
        * check_data = rcv_check->mess_data;
@@ -24,6 +27,10 @@ void troughput(message_data * rcv_buf, message_data * rcv_check, struct msghdr *
     return;
   }
 
+  struct msghdr hdr;
+  struct sockaddr_in dest;
+  construct_header(&hdr, &dest);
+
   printk("%s Throughput test: this module will count how many packets it receives\n", udp_server->name);
   do_gettimeofday(&departure_time);
 
@@ -31,12 +38,10 @@ void troughput(message_data * rcv_buf, message_data * rcv_check, struct msghdr *
 
     if(kthread_should_stop() || signal_pending(current)){
       received +=rec_sec;
-      division(received,seconds, average, size_avg);
-      printk(KERN_INFO "%s Received %llu/sec, Average %s",udp_server->name, rec_sec, average);
       break;
     }
 
-    bytes_received = udp_receive(udps_socket,hdr,recv_data, recv_size);
+    bytes_received = udp_receive(udps_socket,&hdr,recv_data, recv_size);
     do_gettimeofday(&arrival_time);
 
     if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data,check_data,check_size) == 0){
@@ -55,11 +60,13 @@ void troughput(message_data * rcv_buf, message_data * rcv_check, struct msghdr *
   }
 }
 
-void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check, struct msghdr * hdr){
+void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check){
 
   int bytes_received, bytes_sent;
-  struct msghdr reply;
+  struct msghdr reply, hdr;
+  struct sockaddr_in dest;
   construct_header(&reply, NULL);
+  construct_header(&hdr, &dest);
 
   char * send_data = send_buf->mess_data, \
        * recv_data = rcv_buf->mess_data, \
@@ -80,10 +87,10 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
       break;
     }
 
-    bytes_received = udp_receive(udps_socket,hdr,recv_data, recv_size);
+    bytes_received = udp_receive(udps_socket,&hdr,recv_data, recv_size);
 
     if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data,check_data,check_size) == 0){
-      reply.msg_name = (struct sockaddr_in *) hdr->msg_name;
+      reply.msg_name = (struct sockaddr_in *) hdr.msg_name;
       if((bytes_sent = udp_send(udps_socket, &reply, send_data, send_size)) != send_size){
         printk(KERN_ERR "%s Error %d in sending: server not active\n", udp_server->name, bytes_sent);
       }
@@ -91,12 +98,14 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
   }
 }
 
-void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check, struct msghdr * hdr){
+void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check){
 
   int bytes_received, bytes_sent;
   struct sockaddr_in * address;
+  struct sockaddr_in dest;
 
-  struct msghdr reply;
+  struct msghdr reply, hdr;
+  construct_header(&hdr, &dest);
   construct_header(&reply, NULL);
 
   char * send_data = send_buf->mess_data, \
@@ -120,10 +129,10 @@ void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_c
       break;
     }
 
-    bytes_received = udp_receive(udps_socket,hdr,recv_data, recv_size);
+    bytes_received = udp_receive(udps_socket,&hdr,recv_data, recv_size);
 
     if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data,check_data,check_size) == 0){
-      address = (struct sockaddr_in * ) hdr->msg_name;
+      address = (struct sockaddr_in * ) hdr.msg_name;
       printk(KERN_INFO "%s Received HELLO (size %d) from %pI4:%hu",udp_server->name, bytes_received, &address->sin_addr, ntohs(address->sin_port));
       reply.msg_name = address;
       if((bytes_sent = udp_send(udps_socket, &reply, send_data, send_size)) != send_size){

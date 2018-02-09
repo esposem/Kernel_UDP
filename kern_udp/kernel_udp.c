@@ -132,7 +132,7 @@ int udp_receive(struct socket *sock, struct msghdr * header, void * buff, size_t
   return res;
 }
 
-void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, int myport){
+void udp_init(udp_service * k, struct socket ** s, unsigned char * myip, int myport){
   int server_err;
   struct socket *conn_socket;
   struct sockaddr_in server;

@@ -1,7 +1,6 @@
 #ifndef KERN_UDP
 #define KERN_UDP
 
-// #include <asm/atomic.h>
 #include <linux/udp.h>
 #include <linux/version.h>
 
@@ -47,7 +46,7 @@ extern u32 create_address(u8 *ip);
 extern int udp_send(struct socket *sock, struct msghdr * header, void * buff, size_t size_buff);
 extern int udp_receive(struct socket *sock, struct msghdr * header, void * buff, size_t size_buff);
 
-extern void udp_server_init(udp_service * k, struct socket ** s, unsigned char * myip, int myport);
+extern void udp_init(udp_service * k, struct socket ** s, unsigned char * myip, int myport);
 extern void init_service(udp_service * k, char * name);
 extern void udp_server_quit(udp_service * k, struct socket * s);
 

@@ -1,0 +1,13 @@
+#ifndef U_CL_OP
+#define U_CL_OP
+
+#include "user_udp.h"
+
+extern int udpc_socket;
+extern unsigned long long sent;
+
+extern void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long frac_sec);
+extern void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check, struct sockaddr_in * dest_addr);
+extern void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check, struct sockaddr_in * dest_addr);
+
+#endif

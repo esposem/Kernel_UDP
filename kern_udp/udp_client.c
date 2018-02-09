@@ -46,10 +46,9 @@ MODULE_PARM_DESC(us,"Fraction of second between a send and the next (Throughput 
 udp_service * udp_client;
 struct socket * udpc_socket;
 
-int connection_handler(void) {
+static void connection_handler(void) {
 
   struct sockaddr_in dest_addr;
-  struct msghdr hdr;
 
   init_messages();
   message_data * rcv_buff = kmalloc(sizeof(message_data) + MAX_UDP_SIZE, GFP_KERNEL);
@@ -57,48 +56,32 @@ int connection_handler(void) {
 
   rcv_buff->mess_len = MAX_UDP_SIZE;
   send_buff->mess_len = MAX_MESS_SIZE;
-  memset(send_buff->mess_data, '\0', send_buff->mess_len);
   memcpy(send_buff->mess_data, request->mess_data, request->mess_len);
 
   dest_addr.sin_addr.s_addr = htonl(create_address(serverip));
   dest_addr.sin_family = AF_INET;
   dest_addr.sin_port = htons(destport);
 
-  construct_header(&hdr, &dest_addr);
-
-  #if 0
-  int resc =  kernel_connect(client_socket, (struct sockaddr *)&dest_addr, sizeof(struct sockaddr),0);
-  if(resc < 0){
-    printk(KERN_INFO "Error %d", -resc);
-    check_sock_allocation(udp_client, client_socket);
-    atomic_set(&udp_client->thread_running, 0);
-    kfree(rcv_buff);
-    kfree(send_buff);
-    return 0;
-  }
-  #endif
 
   switch(operation){
     case LATENCY:
-      latency(rcv_buff, send_buff, reply, &hdr);
+      latency(rcv_buff, send_buff, reply, &dest_addr);
       break;
     case TROUGHPUT:
-      troughput(send_buff, &hdr, us);
+      troughput(send_buff, &dest_addr, us);
       break;
     default:
-      print(rcv_buff, send_buff, reply, &hdr);
+      print(rcv_buff, send_buff, reply, &dest_addr);
       break;
   }
 
   check_sock_allocation(udp_client, udpc_socket);
   kfree(rcv_buff);
   kfree(send_buff);
-
-  return 0;
 }
 
-int client_listen(void) {
-  udp_server_init(udp_client, &udpc_socket, ipmy, myport);
+static int client_listen(void) {
+  udp_init(udp_client, &udpc_socket, ipmy, myport);
   if(atomic_read(&udp_client->thread_running) == 1){
     connection_handler();
     atomic_set(&udp_client->thread_running, 0);
@@ -106,7 +89,7 @@ int client_listen(void) {
   return 0;
 }
 
-void client_start(void){
+static void client_start(void){
   udp_client->u_thread = kthread_run((void *)client_listen, NULL, udp_client->name);
   if(udp_client->u_thread >= 0){
     atomic_set(&udp_client->thread_running,1);

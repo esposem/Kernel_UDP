@@ -6,184 +6,143 @@
 #include <unistd.h>
 #include <signal.h>
 #include <limits.h>
-#include "include/user_udp.h"
+#include "user_udp.h"
+#include "uclient_operations.h"
 
-static char * in_buf, * out_buf;
-static int sockfd,len, bytes_received, bytes_sent,message_received = 1;
-static struct sockaddr_in serv,cliaddr;
+int udpc_socket;
 static enum operations operation = PRINT;
-static unsigned long frac_sec = 1;
-unsigned long long sent = 0,total = 0,counted = 0;
+
+static char * serverip;
+static int destport = 3000;
+
+static char * ipmy;
+static int myport = 0;
+
+static unsigned long us = 1;
+int stop = 1;
+
 
 void sig_handler(int signo) {
   if (signo == SIGINT){
-    close(sockfd);
-    free(in_buf);
-    free(out_buf);
-    if(operation == THROUGHPUT){ // #if TEST == 1
-      printf("Client: Total number of sent packets: %llu\n", sent);
-    } // #endif
-    printf("Client closed\n");
+    stop = 0;
   }
-  exit(0);
 }
 
-
-int main(int argc,char *argv[]) {
-
+void check_args(int argc, char * argv[]){
   int narg = 5;
-  for (int i = 0; i < argc; i++) {
-    if(memcmp(argv[i], "-p",2) == 0 || memcmp(argv[i], "-P",2)){
+  printf("Parameters: ");
+  for (int i = narg; i < argc; i++) {
+    if(memcmp(argv[i], "-p",2) == 0 || memcmp(argv[i], "-P",2) == 0){
+      printf("%s ", argv[i]);
       narg++;
     }else if(memcmp(argv[i], "-t",2) == 0 || memcmp(argv[i], "-T",2) == 0){
-      operation = THROUGHPUT;
+      printf("%s ", argv[i]);
+      operation = TROUGHPUT;
       narg++;
     }else if(memcmp(argv[i], "-l",2) == 0 || memcmp(argv[i], "-L",2) == 0){
+      printf("%s ", argv[i]);
       operation = LATENCY;
       narg++;
+    }else if(memcmp(argv[i], "-u",2) == 0 || memcmp(argv[i], "-U",2) == 0){
+      printf("%s ", argv[i]);
+      i++;
+      if(i < argc){
+        printf("%s ", argv[i]);
+        us = atoi(argv[i]);
+      }else{
+        printf("\nError!\nUsage: %s ipaddress port serveraddress serverport [-p | -l | -t] [-u microseconds]\n",argv[0]);
+        exit(0);
+      }
+      narg+=2;
     }
-    // else if(memcmp(argv[i], ))
-
   }
+  printf("\n");
 
-  if(argc != narg){
-    printf("Usage: %s ipaddress port serveraddress serverport [-p | -l | -t]\n",argv[0]);
+  if(argc < narg){
+    printf("Usage: %s ipaddress port serveraddress serverport [-p | -l | -t] [-u microseconds]\n",argv[0]);
     exit(0);
   }
 
-  signal(SIGINT, sig_handler);
+  ipmy = argv[1];
+  myport = atoi(argv[2]);
+  serverip = argv[3];
+  destport = atoi(argv[4]);
+}
 
-  if((sockfd=socket(AF_INET,SOCK_DGRAM,0))<0) {
+void udp_init(void){
+
+  struct sockaddr_in cliaddr;
+
+  if((udpc_socket=socket(AF_INET,SOCK_DGRAM,0))<0) {
     perror("Error creating socket");
     exit(0);
   }
 
-  // Make the recvfrom block for only 100 ms
   struct timeval t;
-  t.tv_sec = 0;
-  t.tv_usec = 100000;
+  t.tv_sec = 1;
+  t.tv_usec = 0;
 
-  setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,
-             &t, sizeof(t));
+  setsockopt(udpc_socket, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
 
   bzero(&cliaddr,sizeof(cliaddr));
   cliaddr.sin_family=AF_INET;
-  cliaddr.sin_port=htons(atoi(argv[2]));
-  cliaddr.sin_addr.s_addr=inet_addr(argv[1]);
+  cliaddr.sin_port=htons(myport);
+  cliaddr.sin_addr.s_addr=inet_addr(ipmy);
 
-  if(bind(sockfd,(struct sockaddr *)&cliaddr,sizeof(cliaddr))<0){
+  if(bind(udpc_socket,(struct sockaddr *)&cliaddr,sizeof(cliaddr))<0){
     perror("Error binding socket.");
     exit(0);
   }
 
-  printf("Client: Bind on %s:%s.\n", argv[1], argv[2]);
+  printf("Client: Bind on %s:%d.\n", ipmy, myport);
 
-  memset(&serv,0,sizeof(serv));
-  serv.sin_family=AF_INET;
-  serv.sin_port=htons(atoi(argv[4]));
-  serv.sin_addr.s_addr=inet_addr(argv[3]);
-
-  // if((connect(sockfd, (struct sockaddr *)&serv,sizeof(serv))) < 0) {
+  // if((connect(udpc_socket, (struct sockaddr *)&serv,sizeof(serv))) < 0) {
   //   perror("ERROR connecting to server");
   //   exit(0);
   // }
 
-  printf("Client: Connected Successfully.\n");
+}
 
-  in_buf = malloc(MAX_UDP_SIZE);
-  out_buf = malloc(MAX_MESS_SIZE);
-  memcpy(out_buf, HELLO, strlen(HELLO)+1);
+void connection_handler(void){
 
-  if(operation == PRINT){ // #if TEST == 0
-    if((sendto(sockfd,out_buf,strlen(HELLO)+1,0,(struct sockaddr *)&serv,sizeof(serv)))<0) {
-      perror("ERROR IN SENDTO");
-    }
-    printf("Client: sent HELLO\n");
-  } // #endif
+  struct sockaddr_in dest_addr;
 
-  struct timeval departure_time,arrival_time, seconds_time;
-  double average = 0;
-  unsigned long long res;
-  gettimeofday(&departure_time,NULL);
-  gettimeofday(&seconds_time,NULL);
-  unsigned long logn sent_sec = 0, seconds = 0, intervals = 0;
+  init_messages();
+  message_data * rcv_buff = malloc(sizeof(message_data) + MAX_UDP_SIZE);
+  message_data * send_buff = malloc(sizeof(message_data) + MAX_MESS_SIZE);
 
-  while(1){
+  rcv_buff->mess_len = MAX_UDP_SIZE;
+  send_buff->mess_len = MAX_MESS_SIZE;
+  memcpy(send_buff->mess_data, request->mess_data, request->mess_len);
 
-    if(operation != PRINT){ // #if TEST != 0
-      if(operation == LATENCY){ // #if TEST == 2
-        if(message_received){
-          if((sendto(sockfd,out_buf,strlen(HELLO)+1,0,(struct sockaddr *)&serv,sizeof(serv)))<0) {
-            perror("ERROR IN SENDTO");
-            exit(0);
-          }
-          message_received = 0;
-        }
-      }else{ // #else
-        gettimeofday(&arrival_time, NULL);
-        res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
-        if(res >= _1_SEC/frac_sec){
-          gettimeofday(&departure_time, NULL);
-          bytes_sent = sendto(sockfd,out_buf,strlen(HELLO)+1,0,(struct sockaddr *)&serv,sizeof(serv));
-          if(bytes_sent == MAX_MESS_SIZE){
-            sent_sec++;
-          }else{
-            perror("ERROR IN SENDTO");
-          }
-          intervals++;
-          if(intervals == frac_sec){
-            seconds ++;
-            sent +=sent_sec;
-            average = (double)sent/(double)seconds;
-            printf("Client: Sent %lld/sec \t Average %.3f/sec\n",sent_sec,average );
-            sent_sec = 0;
-            intervals = 0;
-          }
-        // bytes_sent = sendto(sockfd,out_buf,strlen(HELLO)+1,0,(struct sockaddr *)&serv,sizeof(serv));
-        // if(bytes_sent < 0) {
-        //   perror("ERROR IN SENDTO");
-        // }else if(bytes_sent == MAX_MESS_SIZE){
-        //   sent_sec++;
-        //   gettimeofday(&arrival_time, NULL);
-        //   res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
-        //   if(res >= _1_SEC){
-        //     seconds ++;
-        //     sent +=sent_sec;
-        //     average = (double)sent/(double)seconds;
-        //     printf("Client: Sent %lld/sec \t Average %.3f/sec\n",sent_sec,average );
-        //     sent_sec = 0;
-        //     gettimeofday(&departure_time, NULL);
-        //   }
-        // }
-      } // #endif
-    } // #endif
+  dest_addr.sin_family=AF_INET;
+  dest_addr.sin_port=htons(destport);
+  dest_addr.sin_addr.s_addr=inet_addr(serverip);
 
-    if(operation != THROUGHPUT){ // #if TEST != 1
-      memset(in_buf, 0, MAX_UDP_SIZE);
-      bytes_received = recvfrom(sockfd,in_buf,MAX_UDP_SIZE,0,(struct sockaddr *)&cliaddr,&len);
-
-      if(bytes_received == MAX_MESS_SIZE && memcmp(in_buf, OK, strlen(OK)+1) == 0){
-        if(operation == LATENCY){ // #if TEST == 2
-          gettimeofday(&arrival_time,NULL);
-          res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((departure_time.tv_sec * _1_SEC) + departure_time.tv_usec );
-          total += res;
-          counted ++;
-          average = (double)total/ (double)counted;
-          res = ((arrival_time.tv_sec * _1_SEC) + arrival_time.tv_usec) - ((seconds_time.tv_sec * _1_SEC) + seconds_time.tv_usec );
-          if(res >= _1_SEC){
-            printf("Client Latency average is %.3f\n", average );
-            gettimeofday(&seconds_time, NULL);
-          }
-          gettimeofday(&departure_time,NULL);
-          message_received = 1;
-        }else{ // #else
-          printf("Client: Received %s (%d bytes) from %s:%s\n", in_buf, bytes_received, argv[1], argv[2]);
-          break;
-        } // #endif
-      }
-    } // #endif
+  switch(operation){
+    case LATENCY:
+      latency(rcv_buff, send_buff, reply, &dest_addr);
+      break;
+    case TROUGHPUT:
+      troughput(send_buff, &dest_addr, us);
+      break;
+    default:
+      print(rcv_buff, send_buff, reply, &dest_addr);
+      break;
   }
 
-  return 0;
+  close(udpc_socket);
+  free(rcv_buff);
+  free(send_buff);
+  printf("Client closed\n");
+}
 
+int main(int argc,char *argv[]) {
+
+  check_args(argc, argv);
+  signal(SIGINT, sig_handler);
+  udp_init();
+  connection_handler();
+
+  return 0;
 }

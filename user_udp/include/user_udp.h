@@ -1,17 +1,44 @@
 #ifndef USER_UDP
 #define USER_UDP
 
-#define HELLO "HELLO"
-#define OK "OK"
-#define MAX_MESS_SIZE 6
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <signal.h>
+#include <math.h>
+
+#define REQUEST "HELLO"
+#define REPLY "OK"
 #define MAX_UDP_SIZE 65507
-#define MAX_RCV_WAIT 100000 // in microseconds
 #define _1_SEC 1000000
+// sometimes the rcv blocks for less than 1 sec, so allow this error
+#define ABS_ERROR 2000
 
 enum operations {
   PRINT,
-  THROUGHPUT,
+  TROUGHPUT,
   LATENCY
 };
+
+struct message_data{
+  size_t mess_len;
+  unsigned char mess_data[0];
+};
+
+typedef struct message_data message_data;
+
+
+extern int MAX_MESS_SIZE;
+extern int stop;
+extern message_data * request;
+extern message_data *  reply;
+
+extern void init_messages(void);
+extern void construct_header(struct msghdr * msg, struct sockaddr_in * address);
+extern void fill_hdr(struct msghdr * header,  struct iovec * iov, void * data, size_t len);
+
 
 #endif

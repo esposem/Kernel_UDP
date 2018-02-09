@@ -21,7 +21,7 @@ MODULE_PARM_DESC(myport,"The receiving port, default 3000");
 //######################################################
 
 //############## Types of operation #######
-static char * opt = "-p";
+static char * opt = "p";
 static enum operations operation = PRINT;
 module_param(opt, charp, S_IRUGO);
 MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Latency");
@@ -30,37 +30,32 @@ MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Late
 udp_service * udp_server;
 struct socket * udps_socket;
 
-int connection_handler(void)
-{
-  struct msghdr hdr;
-
+static void connection_handler(void){
+  
   init_messages();
   message_data * rcv_buff = kmalloc(sizeof(message_data) + MAX_UDP_SIZE, GFP_KERNEL);
   message_data * send_buff = kmalloc(sizeof(message_data) + MAX_MESS_SIZE, GFP_KERNEL);
 
   rcv_buff->mess_len = MAX_UDP_SIZE;
   send_buff->mess_len = MAX_MESS_SIZE;
-  memset(send_buff->mess_data, '\0', send_buff->mess_len);
   memcpy(send_buff->mess_data, reply->mess_data, reply->mess_len);
 
   switch(operation){
     case LATENCY:
-      latency(rcv_buff, send_buff, request, &hdr);
+      latency(rcv_buff, send_buff, request);
       break;
     case TROUGHPUT:
-      troughput(rcv_buff, request, &hdr);
+      troughput(rcv_buff, request);
       break;
     default:
-      print(rcv_buff, send_buff, request, &hdr);
+      print(rcv_buff, send_buff, request);
       break;
   }
 
-  return 0;
 }
 
-int server_listen(void)
-{
-  udp_server_init(udp_server, &udps_socket, ipmy, myport);
+static int server_listen(void){
+  udp_init(udp_server, &udps_socket, ipmy, myport);
   if(atomic_read(&udp_server->thread_running) == 1){
     connection_handler();
     atomic_set(&udp_server->thread_running, 0);
@@ -68,7 +63,7 @@ int server_listen(void)
   return 0;
 }
 
-void server_start(void){
+static void server_start(void){
   udp_server->u_thread = kthread_run((void *)server_listen, NULL, udp_server->name);
   if(udp_server->u_thread >= 0){
     atomic_set(&udp_server->thread_running,1);
@@ -78,8 +73,7 @@ void server_start(void){
   }
 }
 
-static int __init server_init(void)
-{
+static int __init server_init(void){
   udp_server = kmalloc(sizeof(udp_service), GFP_KERNEL);
   if(!udp_server){
     printk(KERN_INFO "Failed to initialize server");
@@ -94,8 +88,7 @@ static int __init server_init(void)
 
 }
 
-static void __exit server_exit(void)
-{
+static void __exit server_exit(void){
   size_t len = strlen(udp_server->name)+1;
   char prints[len];
   memcpy(prints,udp_server->name,len);

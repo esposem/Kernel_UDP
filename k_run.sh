@@ -1,12 +1,25 @@
-#! /bin/sh
-filename=$1
+#! /bin/bash
+server="$(myip=127,0,0,1 myport=3000)"
+client="$(myip=127,0,0,1 myport=4000 destip=127,0,0,1 destport=3000)"
+us=1
 
-if [ -z ${1} ]; then
-  echo "Usage file_name.ko [param_name=value ...]"
-  kill $$
+if [[ $1 == "s" ]]; then
+  filename="udp_server"
+  options=$server
 fi
 
-shift;
+if [[ $1 == "c" ]]; then
+  filename="udp_client"
+  options=$client
+  if [ ! -z ${3} ]; then
+    us=$3
+  fi
+fi
+
+if [ -z ${2} ]; then
+  echo "Usage [s or c] [l or p or t] wait_us "
+  kill $$
+fi
 
 path=$(dirname $filename)
 
@@ -16,7 +29,7 @@ fi
 
 if cd $path > /dev/null && make > /dev/null && cd -  > /dev/null;then
   echo "Module Successfully complied"
-  if sudo insmod ./$filename.ko $@; then
+  if sudo insmod ./$filename.ko $options opt=$2 us=$us; then
     echo "Successfully loaded Module"
 
     read -rp "Press enter to remove the module or Ctrl+C to exit..." key
