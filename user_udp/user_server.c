@@ -65,7 +65,6 @@ void udp_init(void){
   t.tv_usec = 0;
 
   setsockopt(udps_socket, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
-  printf("socket %d\n", udps_socket);
   bzero(&servaddr,sizeof(servaddr));
   servaddr.sin_family=AF_INET;
   servaddr.sin_port=htons(myport);

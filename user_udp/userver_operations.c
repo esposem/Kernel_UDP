@@ -8,7 +8,7 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
 
   struct timeval departure_time, arrival_time;
   unsigned long long diff_time, rec_sec = 0, seconds = 0;
-  int time_interval = _1_SEC - ABS_ERROR;
+  int time_interval = _1_SEC_TO_NS - ABS_ERROR;
 
   double average;
   int bytes_received;
@@ -44,7 +44,7 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
       rec_sec++;
     }
 
-    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC + arrival_time.tv_usec - departure_time.tv_usec;
+    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC_TO_NS + arrival_time.tv_usec - departure_time.tv_usec;
     if(diff_time >= time_interval){
       memcpy(&departure_time, &arrival_time, size_tmval);
       seconds++;

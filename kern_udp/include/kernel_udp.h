@@ -28,12 +28,12 @@ typedef struct udp_service udp_service;
 typedef struct message_data message_data;
 
 #define MAX_UDP_SIZE 65507
-#define _1_SEC 1000000
+#define _1_SEC_TO_NS 1000000000
 
 #define REQUEST "HELLO"
 #define REPLY "OK"
 // sometimes the rcv blocks for less than 1 sec, so allow this error
-#define ABS_ERROR 2000
+#define ABS_ERROR 2000000
 
 extern int MAX_MESS_SIZE;
 extern message_data * request;

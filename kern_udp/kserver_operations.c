@@ -5,9 +5,9 @@ unsigned long long received = 0;
 
 void troughput(message_data * rcv_buf, message_data * rcv_check){
 
-  struct timeval departure_time, arrival_time;
+  struct timespec departure_time, arrival_time;
   unsigned long long diff_time, rec_sec = 0, seconds = 0;
-  int time_interval = _1_SEC - ABS_ERROR;
+  int time_interval = _1_SEC_TO_NS - ABS_ERROR;
 
   char average[256];
   average[0] = '0';
@@ -19,7 +19,7 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
 
   size_t check_size = rcv_check->mess_len, \
          recv_size = rcv_buf->mess_len, \
-         size_tmval = sizeof(struct timeval),\
+         size_tmval = sizeof(struct timespec),\
          size_avg = sizeof(average);
 
   if(recv_size < check_size){
@@ -32,7 +32,7 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
   construct_header(&hdr, &dest);
 
   printk("%s Throughput test: this module will count how many packets it receives\n", udp_server->name);
-  do_gettimeofday(&departure_time);
+  getrawmonotonic(&departure_time);
 
   while(1){
 
@@ -42,19 +42,19 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
     }
 
     bytes_received = udp_receive(udps_socket,&hdr,recv_data, recv_size);
-    do_gettimeofday(&arrival_time);
+    getrawmonotonic(&arrival_time);
 
     if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data,check_data,check_size) == 0){
       rec_sec++;
     }
 
-    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC + arrival_time.tv_usec - departure_time.tv_usec;
+    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC_TO_NS + arrival_time.tv_nsec - departure_time.tv_nsec;
     if(diff_time >= time_interval){
       memcpy(&departure_time, &arrival_time, size_tmval);
       seconds++;
       received +=rec_sec;
       division(received,seconds, average, size_avg);
-      printk(KERN_INFO "%s Received %llu/sec, Average %s",udp_server->name, rec_sec, average);
+      printk(KERN_INFO "%s Received %llu/sec\tAverage %s\t Total %llu",udp_server->name, rec_sec, average,received);
       rec_sec = 0;
     }
   }

@@ -31,7 +31,6 @@ udp_service * udp_server;
 struct socket * udps_socket;
 
 static void connection_handler(void){
-
   init_messages();
   message_data * rcv_buff = kmalloc(sizeof(message_data) + MAX_UDP_SIZE, GFP_KERNEL);
   message_data * send_buff = kmalloc(sizeof(message_data) + MAX_MESS_SIZE, GFP_KERNEL);
@@ -51,7 +50,6 @@ static void connection_handler(void){
       print(rcv_buff, send_buff, request);
       break;
   }
-
 }
 
 static int server_listen(void){

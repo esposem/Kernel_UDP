@@ -28,7 +28,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
   while(stop){
 
     gettimeofday(current_timep, NULL);
-    diff_time = (current_timep->tv_sec - old_timep->tv_sec)*_1_SEC + current_timep->tv_usec - old_timep->tv_usec;
+    diff_time = (current_timep->tv_sec - old_timep->tv_sec)*_1_SEC_TO_NS + current_timep->tv_usec - old_timep->tv_usec;
 
     interval_counter+= (int) diff_time;
 
@@ -44,7 +44,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
 
     seconds_counter+= (int) diff_time;
 
-    if(seconds_counter >= _1_SEC){
+    if(seconds_counter >= _1_SEC_TO_NS){
       seconds++;
       sent+=sent_sec;
       average = (double)sent/seconds;
@@ -67,7 +67,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
   double average;
   struct timeval departure_time, arrival_time;
   unsigned long long total_latency = 0, correctly_received = 0;
-  int bytes_received, loop_closed = 1, time_interval = _1_SEC - ABS_ERROR, \
+  int bytes_received, loop_closed = 1, time_interval = _1_SEC_TO_NS - ABS_ERROR, \
   diff_time, one_sec = 0;
 
   char * send_data = send_buf->mess_data, \
@@ -100,7 +100,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
     fill_hdr(&hdr, iov, recv_data,recv_size);
     bytes_received = recvmsg(udpc_socket, &hdr, MSG_WAITALL);
     gettimeofday(&arrival_time, NULL);
-    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC + arrival_time.tv_usec - departure_time.tv_usec;
+    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC_TO_NS + arrival_time.tv_usec - departure_time.tv_usec;
 
     if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data, check_data, check_size) == 0){
       total_latency += diff_time;
@@ -109,7 +109,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
       loop_closed = 1;
       average = (double)total_latency /correctly_received;
     }else if(bytes_received < 0){ // nothing received
-      one_sec = _1_SEC;
+      one_sec = _1_SEC_TO_NS;
     }
 
     if(one_sec >= time_interval){

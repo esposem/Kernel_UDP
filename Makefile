@@ -13,7 +13,7 @@ udp_client-y:= \
 
 # ADDITIONAL_FLAG:= #add here if you want to give flags to modules
 USER_FLAGS:= -I$(PWD)/user_udp/include -O2
-EXTRA_CFLAGS:=  -I$(PWD)/kern_udp/include -O2  # $(ADDITIONAL_FLAG)
+EXTRA_CFLAGS:=  -I$(PWD)/kern_udp/include -O2 -D TIMER # $(ADDITIONAL_FLAG)
 
 ccflags-y:= -std=gnu99 -Wno-declaration-after-statement
 

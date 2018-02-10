@@ -3,64 +3,109 @@
 
 unsigned long long sent = 0;
 
+struct time_print{
+  unsigned long long seconds;
+  atomic64_t sent_sec;
+  char average[256];
+  size_t size_avg;
+  struct timer_list timer;
+  struct timeval interval;
+  unsigned long time_jiffies;
+};
+
+#ifdef TIMER
+  void count_sec(unsigned long ptr){
+    struct time_print * t = (struct time_print *) ptr;
+    mod_timer(&t->timer, jiffies + t->time_jiffies);
+    // pid_t tid = current->pid;
+    // printk("PID of this thread: %d\n", tid);
+    long sent_sec = atomic64_read(&t->sent_sec);
+    t->seconds++;
+    sent+=sent_sec; // ATOMIC
+    division(sent,t->seconds, t->average, t->size_avg);
+    printk("%s Sent %ld/sec\tAverage %s\tTotal %llu\n", udp_client->name, sent_sec, t->average, sent);
+    atomic64_set(&t->sent_sec, 0);
+  }
+#endif
+
 void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long us_int){
 
-  struct timeval old_time, current_time;
-  struct timeval * old_timep = &old_time, * current_timep = &current_time, * temp;
+  #if !TIMER
+    struct timespec old_time, current_time;
+    struct timespec * old_timep = &old_time, * current_timep = &current_time, * temp;
+    unsigned long long diff_time;
+    int seconds_counter = 0;
+  #endif
 
-  int bytes_sent, interval_counter = 0, seconds_counter = 0;
-  unsigned long long diff_time, sent_sec = 0, seconds = 0;
+  int bytes_sent; // , interval_counter = 0;
+  struct time_print timep;
 
-  char average[256];
-  average[0] = '0';
-  average[1] = '\0';
+  timep.average[0] = '0';
+  timep.average[1] = '\0';
+  timep.size_avg = sizeof(timep.average);
+  timep.interval = (struct timeval) {1,0};
+  timep.seconds = 0;
+  atomic64_set(&timep.sent_sec, 0);
+  timep.time_jiffies = timeval_to_jiffies(&timep.interval);
 
   char * send_data = send_buf->mess_data;
-
-  size_t send_size = send_buf->mess_len, \
-          size_avg = sizeof(average);
+  size_t send_size = send_buf->mess_len;
 
   struct msghdr hdr;
   construct_header(&hdr, dest_addr);
 
+  #ifdef TIMER
+    setup_timer( &timep.timer,  count_sec,(unsigned long) &timep);
+    mod_timer(&timep.timer, jiffies + timep.time_jiffies);
+  #endif
+
   printk("%s Throughput test: this module will count how many packets it sends\n", udp_client->name);
-  do_gettimeofday(old_timep);
+  #if !TIMER
+    getrawmonotonic(old_timep);
+  #endif
 
   while(1){
 
     if(kthread_should_stop() || signal_pending(current)){
-      sent +=sent_sec;
+      #ifdef TIMER
+        del_timer(&timep.timer);
+      #endif
+      sent += atomic64_read(&timep.sent_sec);
       return;
     }
 
-    do_gettimeofday(current_timep);
-    diff_time = (current_timep->tv_sec - old_timep->tv_sec)*_1_SEC + current_timep->tv_usec - old_timep->tv_usec;
+    #if !TIMER
+      getrawmonotonic(current_timep);
+      diff_time = (current_timep->tv_sec - old_timep->tv_sec)*_1_SEC_TO_NS + current_timep->tv_nsec - old_timep->tv_nsec;
+    #endif
 
-    interval_counter+= (int) diff_time;
+    // interval_counter+= (int) diff_time;
 
-    if(interval_counter >= us_int){
+    // if(interval_counter >= us_int){
       if((bytes_sent = udp_send(udpc_socket, &hdr, send_data, send_size)) == send_size){
-        sent_sec++;
+        atomic64_inc(&timep.sent_sec);
       }else{
         printk(KERN_ERR "%s Error %d in sending: server not active\n", udp_client->name, bytes_sent);
       }
-      interval_counter = 0;
-    }
+      // interval_counter = 0;
+    // }
 
+    #if !TIMER
     seconds_counter+= (int) diff_time;
 
-    if(seconds_counter >= _1_SEC){
-      seconds++;
-      sent+=sent_sec;
-      division(sent,seconds, average, size_avg);
-      printk("%s Sent %lld/sec, Average %s\n", udp_client->name, sent_sec, average);
-      sent_sec = 0;
+    if(seconds_counter >= _1_SEC_TO_NS){
+      timep.seconds++;
+      sent+=atomic64_read(&timep.sent_sec);
+      division(sent,timep.seconds, timep.average, timep.size_avg);
+      printk("%s Sent %ld/sec\tAverage %s\tTotal %llu\n", udp_client->name, atomic64_read(&timep.sent_sec), timep.average, sent);
+      atomic64_set(&timep.sent_sec,0);
       seconds_counter = 0;
     }
 
     temp = current_timep;
     current_timep = old_timep;
     old_timep = temp;
+    #endif
   }
 }
 
@@ -68,9 +113,9 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
 void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check, struct sockaddr_in * dest_addr){
 
   char average[256];
-  struct timeval departure_time, arrival_time;
+  struct timespec departure_time, arrival_time;
   unsigned long long total_latency = 0, correctly_received = 0;
-  int bytes_received, bytes_sent, loop_closed = 1, time_interval = _1_SEC - ABS_ERROR, \
+  int bytes_received, bytes_sent, loop_closed = 1, time_interval = _1_SEC_TO_NS - ABS_ERROR, \
   diff_time, one_sec = 0;
 
   char * send_data = send_buf->mess_data, \
@@ -102,7 +147,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
     }
 
     if(loop_closed){
-      do_gettimeofday(&departure_time);
+      getrawmonotonic(&departure_time);
       if((bytes_sent = udp_send(udpc_socket, &hdr, send_data, send_size)) != send_size){
         printk(KERN_ERR "%s Error %d in sending: server not active\n", udp_client->name, bytes_sent);
         continue;
@@ -112,8 +157,8 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
 
     // blocks at most for one second
     bytes_received = udp_receive(udpc_socket, &hdr, recv_data, recv_size);
-    do_gettimeofday(&arrival_time);
-    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC + arrival_time.tv_usec - departure_time.tv_usec;
+    getrawmonotonic(&arrival_time);
+    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC_TO_NS + arrival_time.tv_nsec - departure_time.tv_nsec;
 
     if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data, check_data, check_size) == 0){
       total_latency += diff_time;
@@ -122,7 +167,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
       loop_closed = 1;
       division(total_latency,correctly_received, average, size_avg);
     }else if(bytes_received < 0){ // nothing received
-      one_sec = _1_SEC;
+      one_sec = _1_SEC_TO_NS;
     }
 
     if(one_sec >= time_interval){
