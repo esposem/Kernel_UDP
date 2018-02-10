@@ -11,14 +11,13 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
                   * temp;
 
   unsigned long diff_time;
-  unsigned long long seconds, sent_sec;
+  unsigned long long seconds=0, sent_sec=0;
   int seconds_counter = 0;
   int bytes_sent; // , interval_counter = 0;
 
+  timep.size_avg = sizeof(timep.average);
   timep.average[0] = '0';
   timep.average[1] = '\0';
-  timep.seconds = 0;
-  timep.sent_sec = 0;
 
   char * send_data = send_buf->mess_data;
   size_t send_size = send_buf->mess_len;
@@ -32,7 +31,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
   while(1){
 
     if(kthread_should_stop() || signal_pending(current)){
-      sent += timep.sent_sec;
+      sent += sent_sec;
       return;
     }
 
@@ -43,7 +42,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
 
     // if(interval_counter >= us_int){
       if((bytes_sent = udp_send(udpc_socket, &hdr, send_data, send_size)) == send_size){
-        timep.sent_sec++;
+        sent_sec++;
       }else{
         printk(KERN_ERR "%s Error %d in sending: server not active\n", udp_client->name, bytes_sent);
       }
@@ -53,11 +52,11 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
     seconds_counter+= (int) diff_time;
 
     if(seconds_counter >= _1_SEC_TO_NS){
-      timep.seconds++;
-      sent+= timep.sent_sec;
-      division(sent,timep.seconds, timep.average, timep.size_avg);
-      printk("%s Sent %lld/sec\tAverage %s\tTotal %llu\n", udp_client->name, timep.sent_sec, timep.average, sent);
-      timep.sent_sec = 0;
+      seconds++;
+      sent+= sent_sec;
+      division(sent,seconds, timep.average, timep.size_avg);
+      printk("C: Sent:%lld/sec   Avg:%s   Tot:%llu\n", sent_sec, timep.average, sent);
+      sent_sec = 0;
       seconds_counter = 0;
     }
 
@@ -88,6 +87,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
     return;
   }
 
+  timep.size_avg = sizeof(timep.average);
   timep.average[0] = '0';
   timep.average[1] = '\0';
 
@@ -173,6 +173,6 @@ void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_c
   }while(!(bytes_received == MAX_MESS_SIZE && memcmp(recv_data, check_data, check_size) == 0));
 
   address = hdr.msg_name;
-  printk(KERN_INFO "%s Received %s (size %d) from %pI4:%hu",udp_client->name, recv_data, bytes_received, &address->sin_addr, ntohs(address->sin_port));
-  printk(KERN_INFO "%s All done, terminating client", udp_client->name);
+  printk(KERN_INFO "%s Received %s (size %d) from %pI4:%hu\n",udp_client->name, recv_data, bytes_received, &address->sin_addr, ntohs(address->sin_port));
+  printk(KERN_INFO "%s All done, terminating client\n", udp_client->name);
 }

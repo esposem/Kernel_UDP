@@ -54,7 +54,7 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
       seconds++;
       received +=rec_sec;
       division(received,seconds, average, size_avg);
-      printk(KERN_INFO "%s Received %llu/sec\tAverage %s\t Total %llu",udp_server->name, rec_sec, average,received);
+      printk(KERN_INFO "S: Recv:%lld/sec   Avg:%s   Tot:%llu\n", rec_sec, average, received);
       rec_sec = 0;
     }
   }
