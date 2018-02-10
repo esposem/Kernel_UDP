@@ -1,10 +1,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
-#include <linux/udp.h>
-#include <asm/atomic.h>
-#include <linux/time.h>
-#include <net/sock.h>
 #include "kernel_udp.h"
 #include "kserver_operations.h"
 

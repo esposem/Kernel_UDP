@@ -3,6 +3,13 @@
 
 #include "kernel_udp.h"
 
+struct common_data{
+  char average[256];
+  size_t size_avg;
+  struct timespec old_time;
+  struct timespec current_time;
+};
+
 extern udp_service * udp_client;
 extern struct socket * udpc_socket;
 extern unsigned long long sent;
