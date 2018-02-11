@@ -34,9 +34,9 @@ static enum operations operation = PRINT;
 module_param(opt, charp, S_IRUGO);
 MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Latency");
 
-static unsigned long us = 1;
-module_param(us,long, S_IRUGO);
-MODULE_PARM_DESC(us,"Fraction of second between a send and the next (Throughput mode only)");
+static unsigned long ns = 1;
+module_param(ns,long, S_IRUGO);
+MODULE_PARM_DESC(ns,"Fraction of second between a send and the next (Throughput mode only)");
 //######################################################
 
 udp_service * udp_client;
@@ -64,7 +64,7 @@ static void connection_handler(void) {
       latency(rcv_buff, send_buff, reply, &dest_addr);
       break;
     case TROUGHPUT:
-      troughput(send_buff, &dest_addr, us);
+      troughput(send_buff, &dest_addr, ns);
       break;
     default:
       print(rcv_buff, send_buff, reply, &dest_addr);
@@ -104,7 +104,7 @@ static int __init client_init(void) {
     check_params(serverip, destip, sargs);
     check_operation(&operation, opt);
     init_service(udp_client, "Client:");
-    printk(KERN_INFO "%s opt: %c, us: %lu\n",udp_client->name, opt[0], us);
+    printk(KERN_INFO "%s opt: %c, ns: %lu\n",udp_client->name, opt[0], ns);
     client_start();
   }
   return 0;
