@@ -46,7 +46,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
   ktime = ktime_set( 20, 0);
   hrtimer_init( &hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL );
   hr_timer.function = &my_hrtimer_callback;
-  hrtimer_start( &hr_timer, ktime, HRTIMER_MODE_REL );
+  // hrtimer_start( &hr_timer, ktime, HRTIMER_MODE_REL );
 
   printk("%s Throughput test: this module will count how many packets it sends\n", udp_client->name);
   getrawmonotonic(old_timep);
@@ -81,6 +81,10 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
       printk("C: Sent:%lld/sec   Avg:%s   Tot:%llu\n", sent_sec, timep.average, sent);
       sent_sec = 0;
       seconds_counter = 0;
+      if(seconds == 20){
+        printk(KERN_INFO "STOP!");
+        break;
+      }
     }
 
     temp = current_timep;

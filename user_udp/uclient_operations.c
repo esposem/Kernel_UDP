@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "uclient_operations.h"
 
 unsigned long long sent =0;
 
 void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long us_int){
-  struct timeval old_time, current_time;
-  struct timeval * old_timep = &old_time, * current_timep = &current_time, * temp;
+  struct timespec old_time, current_time;
+  struct timespec * old_timep = &old_time, * current_timep = &current_time, * temp;
 
   int bytes_sent, interval_counter = 0, seconds_counter = 0;
   unsigned long long diff_time, sent_sec = 0, seconds = 0;
@@ -22,13 +23,13 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
   construct_header(&hdr, dest_addr);
 
   printf("Client: Throughput test: this module will count how many packets it sends\n");
-  gettimeofday(old_timep, NULL);
+  clock_gettime(CLOCK_MONOTONIC_RAW, old_timep);
 
 
   while(stop){
 
-    gettimeofday(current_timep, NULL);
-    diff_time = (current_timep->tv_sec - old_timep->tv_sec)*_1_SEC_TO_NS + current_timep->tv_usec - old_timep->tv_usec;
+    clock_gettime(CLOCK_MONOTONIC_RAW, current_timep);
+    diff_time = (current_timep->tv_sec - old_timep->tv_sec)*_1_SEC_TO_NS + current_timep->tv_nsec - old_timep->tv_nsec;
 
     interval_counter+= (int) diff_time;
 
@@ -51,6 +52,10 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
       printf("Client: Sent %lld/sec, Average %.3f\n", sent_sec, average);
       sent_sec = 0;
       seconds_counter = 0;
+      if(seconds == 20){
+        printf("STOP!");
+        break;
+      }
     }
 
     temp = current_timep;
@@ -65,7 +70,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
 void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check, struct sockaddr_in * dest_addr){
 
   double average;
-  struct timeval departure_time, arrival_time;
+  struct timespec departure_time, arrival_time;
   unsigned long long total_latency = 0, correctly_received = 0;
   int bytes_received, loop_closed = 1, time_interval = _1_SEC_TO_NS - ABS_ERROR, \
   diff_time, one_sec = 0;
@@ -87,7 +92,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
   while(stop){
 
     if(loop_closed){
-      gettimeofday(&departure_time, NULL);
+      clock_gettime(CLOCK_MONOTONIC_RAW, &departure_time);
       fill_hdr(&hdr, iov, send_data,send_size);
       if(sendmsg(udpc_socket,&hdr, 0) != send_size) {
         perror("ERROR IN SENDTO");
@@ -99,8 +104,8 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
     // blocks at most for one second
     fill_hdr(&hdr, iov, recv_data,recv_size);
     bytes_received = recvmsg(udpc_socket, &hdr, MSG_WAITALL);
-    gettimeofday(&arrival_time, NULL);
-    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC_TO_NS + arrival_time.tv_usec - departure_time.tv_usec;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &arrival_time);
+    diff_time = (arrival_time.tv_sec - departure_time.tv_sec)*_1_SEC_TO_NS + arrival_time.tv_nsec - departure_time.tv_nsec;
 
     if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data, check_data, check_size) == 0){
       total_latency += diff_time;
