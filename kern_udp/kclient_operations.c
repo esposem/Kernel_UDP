@@ -5,20 +5,20 @@
 
 unsigned long long sent = 0;
 
-static struct hrtimer hr_timer;
-enum hrtimer_restart res;
-ktime_t ktime;
+// static struct hrtimer hr_timer;
+// enum hrtimer_restart res;
+// ktime_t ktime;
 int stop = 1;
 
 
-enum hrtimer_restart my_hrtimer_callback( struct hrtimer *timer )
-{
-  // hrtimer_forward(timer, ktime_get() , ktime);
-  stop = 0;
-  printk(KERN_INFO "STOP!\n");
-  // return res;
-  return HRTIMER_NORESTART;
-}
+// enum hrtimer_restart my_hrtimer_callback( struct hrtimer *timer )
+// {
+//   // hrtimer_forward(timer, ktime_get() , ktime);
+//   stop = 0;
+//   printk(KERN_INFO "STOP!\n");
+//   // return res;
+//   return HRTIMER_NORESTART;
+// }
 
 void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long ns_int){
 
@@ -42,10 +42,10 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
   struct msghdr hdr;
   construct_header(&hdr, dest_addr);
 
-  res = HRTIMER_RESTART;
-  ktime = ktime_set( 20, 0);
-  hrtimer_init( &hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL );
-  hr_timer.function = &my_hrtimer_callback;
+  // res = HRTIMER_RESTART;
+  // ktime = ktime_set( 20, 0);
+  // hrtimer_init( &hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL );
+  // hr_timer.function = &my_hrtimer_callback;
   // hrtimer_start( &hr_timer, ktime, HRTIMER_MODE_REL );
 
   printk("%s Throughput test: this module will count how many packets it sends\n", udp_client->name);
@@ -82,7 +82,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
       sent_sec = 0;
       seconds_counter = 0;
       if(seconds == 20){
-        printk(KERN_INFO "STOP!");
+        printk(KERN_INFO "STOP!\n");
         break;
       }
     }
@@ -91,8 +91,8 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
     current_timep = old_timep;
     old_timep = temp;
   }
-  res = HRTIMER_NORESTART;
-  hrtimer_cancel( &hr_timer );
+  // res = HRTIMER_NORESTART;
+  // hrtimer_cancel( &hr_timer );
   sent += sent_sec;
 }
 

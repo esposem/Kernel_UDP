@@ -34,7 +34,7 @@ else
   # kill $$
 fi
 
-if sudo insmod ./$filename.ko $options opt=$2 us=$us; then
+if sudo insmod ./$filename.ko $options opt=$2 ns=$us; then
   echo "Successfully loaded Module"
 
   read -rp "Press enter to remove the module or Ctrl+C to exit..." key

@@ -18,7 +18,7 @@ static int destport = 3000;
 static char * ipmy;
 static int myport = 0;
 
-static unsigned long us = 1;
+static unsigned long ns = 1;
 int stop = 1;
 
 
@@ -43,12 +43,12 @@ void check_args(int argc, char * argv[]){
       printf("%s ", argv[i]);
       operation = LATENCY;
       narg++;
-    }else if(memcmp(argv[i], "-u",2) == 0 || memcmp(argv[i], "-U",2) == 0){
+    }else if(memcmp(argv[i], "-n",2) == 0 || memcmp(argv[i], "-N",2) == 0){
       printf("%s ", argv[i]);
       i++;
       if(i < argc){
         printf("%s ", argv[i]);
-        us = atoi(argv[i]);
+        ns = atoi(argv[i]);
       }else{
         printf("\nError!\nUsage: %s ipaddress port serveraddress serverport [-p | -l | -t] [-u microseconds]\n",argv[0]);
         exit(0);
@@ -124,7 +124,7 @@ void connection_handler(void){
       latency(rcv_buff, send_buff, reply, &dest_addr);
       break;
     case TROUGHPUT:
-      troughput(send_buff, &dest_addr, us);
+      troughput(send_buff, &dest_addr, ns);
       break;
     default:
       print(rcv_buff, send_buff, reply, &dest_addr);

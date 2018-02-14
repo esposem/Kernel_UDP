@@ -5,7 +5,7 @@
 
 unsigned long long sent =0;
 
-void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long us_int){
+void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long ns_int){
   struct timespec old_time, current_time;
   struct timespec * old_timep = &old_time, * current_timep = &current_time, * temp;
 
@@ -25,7 +25,6 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
   printf("Client: Throughput test: this module will count how many packets it sends\n");
   clock_gettime(CLOCK_MONOTONIC_RAW, old_timep);
 
-
   while(stop){
 
     clock_gettime(CLOCK_MONOTONIC_RAW, current_timep);
@@ -33,7 +32,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
 
     interval_counter+= (int) diff_time;
 
-    if(interval_counter >= us_int){
+    if(interval_counter >= ns_int){
       fill_hdr(&hdr, iov, send_data,send_size);
       if((bytes_sent = sendmsg(udpc_socket, &hdr, 0)) == send_size){
         sent_sec++;
@@ -53,7 +52,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
       sent_sec = 0;
       seconds_counter = 0;
       if(seconds == 20){
-        printf("STOP!");
+        printf("STOP!\n");
         break;
       }
     }
