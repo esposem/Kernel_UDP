@@ -5,7 +5,7 @@
 
 unsigned long long sent =0;
 
-void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long ns_int){
+void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long ns_int, long tsec){
   struct timespec old_time, current_time;
   struct timespec * old_timep = &old_time, * current_timep = &current_time, * temp;
 
@@ -48,10 +48,10 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
       seconds++;
       sent+=sent_sec;
       average = (double)sent/seconds;
-      printf("Client: Sent %lld/sec, Average %.3f\n", sent_sec, average);
+      printf("C: Sent:%lld/sec   Avg:%.3f   Tot:%llu\n", sent_sec, average, sent);
       sent_sec = 0;
       seconds_counter = 0;
-      if(seconds == 20){
+      if(seconds == tsec){
         printf("STOP!\n");
         break;
       }

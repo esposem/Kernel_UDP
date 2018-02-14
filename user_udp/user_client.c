@@ -19,6 +19,7 @@ static char * ipmy;
 static int myport = 0;
 
 static unsigned long ns = 1;
+static long tsec = -1;
 int stop = 1;
 
 
@@ -48,9 +49,20 @@ void check_args(int argc, char * argv[]){
       i++;
       if(i < argc){
         printf("%s ", argv[i]);
-        ns = atoi(argv[i]);
+        ns = atol(argv[i]);
       }else{
-        printf("\nError!\nUsage: %s ipaddress port serveraddress serverport [-p | -l | -t] [-u microseconds]\n",argv[0]);
+        printf("\nError!\nUsage -n delay\n");
+        exit(0);
+      }
+      narg+=2;
+    }else if(memcmp(argv[i], "-s",2) == 0 || memcmp(argv[i], "-S",2) == 0){
+      printf("%s ", argv[i]);
+      i++;
+      if(i < argc){
+        printf("%s ", argv[i]);
+        tsec = atol(argv[i]);
+      }else{
+        printf("\nError!\nUsage -s duration\n");
         exit(0);
       }
       narg+=2;
@@ -59,7 +71,7 @@ void check_args(int argc, char * argv[]){
   printf("\n");
 
   if(argc < narg){
-    printf("Usage: %s ipaddress port serveraddress serverport [-p | -l | -t] [-u microseconds]\n",argv[0]);
+    printf("Usage: %s ipaddress port serveraddress serverport [-p | -l | -t] [-n microseconds] [-s seconds]\n",argv[0]);
     exit(0);
   }
 
@@ -124,7 +136,7 @@ void connection_handler(void){
       latency(rcv_buff, send_buff, reply, &dest_addr);
       break;
     case TROUGHPUT:
-      troughput(send_buff, &dest_addr, ns);
+      troughput(send_buff, &dest_addr, ns, tsec);
       break;
     default:
       print(rcv_buff, send_buff, reply, &dest_addr);
@@ -142,6 +154,7 @@ int main(int argc,char *argv[]) {
   check_args(argc, argv);
   signal(SIGINT, sig_handler);
   udp_init();
+  printf("Client: Destination is %s:%d\n", serverip, destport);
   connection_handler();
 
   return 0;

@@ -20,7 +20,7 @@ int stop = 1;
 //   return HRTIMER_NORESTART;
 // }
 
-void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long ns_int){
+void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long ns_int, long tsec){
 
   struct common_data timep;
   struct timespec * old_timep = &timep.old_time, \
@@ -31,7 +31,6 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
   unsigned long long seconds=0, sent_sec=0;
   int seconds_counter = 0;
   int bytes_sent, interval_counter = 0;
-  // ns_int *= 1000;
   timep.size_avg = sizeof(timep.average);
   timep.average[0] = '0';
   timep.average[1] = '\0';
@@ -55,7 +54,6 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
 
     if(kthread_should_stop() || signal_pending(current)){
       break;
-      // return;
     }
 
     getrawmonotonic(current_timep);
@@ -81,7 +79,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
       printk("C: Sent:%lld/sec   Avg:%s   Tot:%llu\n", sent_sec, timep.average, sent);
       sent_sec = 0;
       seconds_counter = 0;
-      if(seconds == 20){
+      if(seconds == tsec){
         printk(KERN_INFO "STOP!\n");
         break;
       }
@@ -113,7 +111,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
          recv_size = rcv_buf->mess_len;
 
   if(recv_size < check_size){
-    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message", udp_client->name);
+    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", udp_client->name);
     return;
   }
 
@@ -180,15 +178,15 @@ void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_c
   construct_header(&hdr, dest_addr);
 
   if(recv_size < check_size){
-    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message", udp_client->name);
+    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", udp_client->name);
     return;
   }
 
-  printk("%s Performing a simple test: this module will send %s and will wait to receive %s from server\n", udp_client->name, send_data, "OK");
+  printk("%s Performing a simple test: this module will send OK and will wait to receive %s from server\n", udp_client->name, send_data);
 
   if((bytes_sent = udp_send(udpc_socket, &hdr, send_data, send_size)) == send_size){
     address = hdr.msg_name;
-    printk(KERN_INFO "%s Sent %s (size %zu) to %pI4 : %hu",udp_client->name, send_data, send_size, &address->sin_addr, ntohs(address->sin_port));
+    printk(KERN_INFO "%s Sent %s (size %zu) to %pI4 : %hu\n",udp_client->name, send_data, send_size, &address->sin_addr, ntohs(address->sin_port));
   }else{
     printk(KERN_ERR "%s Error %d in sending: server not active\n", udp_client->name, bytes_sent);
   }

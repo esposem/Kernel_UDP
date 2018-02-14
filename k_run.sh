@@ -1,7 +1,8 @@
 #! /bin/bash
 server="$(myip=127,0,0,1 myport=3000)"
 client="$(myip=127,0,0,1 myport=4000 destip=127,0,0,1 destport=3000)"
-us=1
+ns=0
+tsec=-1
 
 if [[ $1 == "s" ]]; then
   filename="udp_server"
@@ -11,13 +12,18 @@ fi
 if [[ $1 == "c" ]]; then
   filename="udp_client"
   options=$client
-  if [ ! -z ${3} ]; then
-    us=$3
+  if [ ! -z ${3} ] && [ "$3" != "x" ]; then
+    # if [ "$3" != "x" ]; then
+      ns=$3
+    # fi
+  fi
+  if [ ! -z ${4} ] && [ "$4" != "x" ]; then
+    tsec=$4
   fi
 fi
 
 if [ -z ${2} ]; then
-  echo "Usage [s or c] [l or p or t] wait_us "
+  echo "Usage [s or c] [l or p or t] wait_ns "
   kill $$
 fi
 
@@ -34,7 +40,7 @@ else
   # kill $$
 fi
 
-if sudo insmod ./$filename.ko $options opt=$2 ns=$us; then
+if sudo insmod ./$filename.ko $options opt=$2 ns=$ns tsec=$tsec; then
   echo "Successfully loaded Module"
 
   read -rp "Press enter to remove the module or Ctrl+C to exit..." key

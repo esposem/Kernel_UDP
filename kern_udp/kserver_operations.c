@@ -23,7 +23,7 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
          size_avg = sizeof(average);
 
   if(recv_size < check_size){
-    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message", udp_server->name);
+    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", udp_server->name);
     return;
   }
 
@@ -77,7 +77,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
          recv_size = rcv_buf->mess_len;
 
   if(recv_size < check_size){
-    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message", udp_server->name);
+    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", udp_server->name);
     return;
   }
 
@@ -120,7 +120,7 @@ void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_c
          recv_size = rcv_buf->mess_len;
 
   if(recv_size < check_size){
-    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message", udp_server->name);
+    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", udp_server->name);
     return;
   }
 
@@ -136,12 +136,12 @@ void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_c
 
     if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data,check_data,check_size) == 0){
       address = (struct sockaddr_in * ) hdr.msg_name;
-      printk(KERN_INFO "%s Received HELLO (size %d) from %pI4:%hu",udp_server->name, bytes_received, &address->sin_addr, ntohs(address->sin_port));
+      printk(KERN_INFO "%s Received %s (size %d) from %pI4:%hu\n",udp_server->name, recv_data, bytes_received, &address->sin_addr, ntohs(address->sin_port));
       reply.msg_name = address;
       if((bytes_sent = udp_send(udps_socket, &reply, send_data, send_size)) != send_size){
         printk(KERN_ERR "%s Error %d in sending: client not active\n", udp_server->name, bytes_sent);
       }else{
-        printk(KERN_INFO "%s Sent OK (size %zu) to %pI4 : %hu",udp_server->name, send_size, &address->sin_addr, ntohs(address->sin_port));
+        printk(KERN_INFO "%s Sent %s (size %zu) to %pI4:%hu\n",udp_server->name, send_data, send_size, &address->sin_addr, ntohs(address->sin_port));
       }
     }
   }

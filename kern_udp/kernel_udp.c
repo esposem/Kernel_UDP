@@ -12,7 +12,7 @@ message_data * reply;
 void check_params(unsigned char * dest, unsigned int * src, int arg){
   if(arg != 4){
     if(arg != 0)
-      printk(KERN_ERR "Ip not valid, using the default one");
+      printk(KERN_ERR "Ip not valid, using the default one\n");
     return;
   }
   for (size_t i = 0; i < 4; i++) {
@@ -65,7 +65,7 @@ void division(size_t dividend, size_t divisor, char * result, size_t size_res){
 
 void check_sock_allocation(udp_service * k, struct socket * s){
   if(atomic_read(&k->socket_allocated) == 1){
-    // printk(KERN_INFO "%s Released socket",k->name);
+    // printk(KERN_INFO "%s Released socket\n",k->name);
     atomic_set(&k->socket_allocated, 0);
     sock_release(s);
   }
@@ -145,12 +145,12 @@ void udp_init(udp_service * k, struct socket ** s, unsigned char * myip, int myp
     server_err = sock_create_kern(AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
   #endif
   if(server_err < 0){
-    printk(KERN_INFO "%s Error %d while creating socket ",k->name, server_err);
+    printk(KERN_INFO "%s Error %d while creating socket\n",k->name, server_err);
     atomic_set(&k->thread_running, 0);
     return;
   }else{
     atomic_set(&k->socket_allocated, 1);
-    printk(KERN_INFO "%s Created socket ",k->name);
+    printk(KERN_INFO "%s Created socket\n",k->name);
   }
 
   conn_socket = *s;
@@ -160,7 +160,7 @@ void udp_init(udp_service * k, struct socket ** s, unsigned char * myip, int myp
 
   server_err = conn_socket->ops->bind(conn_socket, (struct sockaddr*)&server, sizeof(server));
   if(server_err < 0) {
-    printk(KERN_INFO "%s Error %d while binding socket %pI4",k->name, server_err, &server.sin_addr);
+    printk(KERN_INFO "%s Error %d while binding socket %pI4\n",k->name, server_err, &server.sin_addr);
     atomic_set(&k->socket_allocated, 0);
     sock_release(conn_socket);
     atomic_set(&k->thread_running, 0);
@@ -187,7 +187,7 @@ void init_service(udp_service * k, char * name){
   size_t stlen = strlen(name) + 1;
   k->name = kmalloc(stlen, GFP_KERNEL);
   memcpy(k->name, name, stlen);
-  printk(KERN_INFO "%s Initialized", k->name);
+  printk(KERN_INFO "%s Initialized\n", k->name);
 }
 
 void udp_server_quit(udp_service * k, struct socket * s){
@@ -196,24 +196,24 @@ void udp_server_quit(udp_service * k, struct socket * s){
     if(atomic_read(&k->thread_running) == 1){
       atomic_set(&k->thread_running, 0);
       if((ret = kthread_stop(k->u_thread)) == 0){
-        printk(KERN_INFO "%s Terminated thread", k->name);
+        printk(KERN_INFO "%s Terminated thread\n", k->name);
       }else{
-        printk(KERN_INFO "%s Error %d in terminating thread", k->name, ret);
+        printk(KERN_INFO "%s Error %d in terminating thread\n", k->name, ret);
       }
     }else{
-      printk(KERN_INFO "%s Thread was already stopped", k->name);
+      printk(KERN_INFO "%s Thread was already stopped\n", k->name);
     }
 
     if(atomic_read(&k->socket_allocated) == 1){
       atomic_set(&k->socket_allocated, 0);
       sock_release(s);
-      printk(KERN_INFO "%s Released socket", k->name);
+      printk(KERN_INFO "%s Released socket\n", k->name);
     }
-    printk(KERN_INFO "%s Module unloaded", k->name);
+    printk(KERN_INFO "%s Module unloaded\n", k->name);
     kfree(k->name);
     kfree(k);
   }else{
-    printk(KERN_INFO "Module was NULL, terminated");
+    printk(KERN_INFO "Module was NULL, terminated\n");
   }
 
 }

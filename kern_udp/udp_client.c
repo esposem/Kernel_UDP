@@ -36,7 +36,11 @@ MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Late
 
 static unsigned long ns = 1;
 module_param(ns,long, S_IRUGO);
-MODULE_PARM_DESC(ns,"Fraction of second between a send and the next (Throughput mode only)");
+MODULE_PARM_DESC(ns,"Delay between each send call (Throughput mode only)");
+
+static long tsec = -1;
+module_param(tsec,long, S_IRUGO);
+MODULE_PARM_DESC(tsec,"How long the client should send messages (Throughput mode only)");
 //######################################################
 
 udp_service * udp_client;
@@ -64,7 +68,7 @@ static void connection_handler(void) {
       latency(rcv_buff, send_buff, reply, &dest_addr);
       break;
     case TROUGHPUT:
-      troughput(send_buff, &dest_addr, ns);
+      troughput(send_buff, &dest_addr, ns, tsec);
       break;
     default:
       print(rcv_buff, send_buff, reply, &dest_addr);
@@ -78,6 +82,8 @@ static void connection_handler(void) {
 
 static int client_listen(void) {
   udp_init(udp_client, &udpc_socket, ipmy, myport);
+  unsigned long l = htonl(create_address(serverip));
+  printk(KERN_INFO "%s Destination is %pI4:%d\n",udp_client->name, &l, destport);
   if(atomic_read(&udp_client->thread_running) == 1){
     connection_handler();
     atomic_set(&udp_client->thread_running, 0);
@@ -89,22 +95,22 @@ static void client_start(void){
   udp_client->u_thread = kthread_run((void *)client_listen, NULL, udp_client->name);
   if(udp_client->u_thread >= 0){
     atomic_set(&udp_client->thread_running,1);
-    printk(KERN_INFO "%s Thread running", udp_client->name);
+    printk(KERN_INFO "%s Thread running\n", udp_client->name);
   }else{
-    printk(KERN_INFO "%s Error in starting thread. Terminated", udp_client->name);
+    printk(KERN_INFO "%s Error in starting thread. Terminated\n", udp_client->name);
   }
 }
 
 static int __init client_init(void) {
   udp_client = kmalloc(sizeof(udp_service), GFP_KERNEL);
   if(!udp_client){
-    printk(KERN_INFO "Failed to initialize CLIENT");
+    printk(KERN_INFO "Failed to initialize CLIENT\n");
   }else{
     check_params(ipmy, myip, margs);
     check_params(serverip, destip, sargs);
     check_operation(&operation, opt);
     init_service(udp_client, "Client:");
-    printk(KERN_INFO "%s opt: %c, ns: %lu\n",udp_client->name, opt[0], ns);
+    printk(KERN_INFO "%s opt: %c, ns: %lu, tsec: %ld\n",udp_client->name, opt[0], ns, tsec);
     client_start();
   }
   return 0;
@@ -116,9 +122,7 @@ static void __exit client_exit(void) {
   memcpy(prints,udp_client->name,len);
   udp_server_quit(udp_client, udpc_socket);
   if(operation == TROUGHPUT){
-    printk(KERN_INFO "%s Sent total of %llu packets",prints, sent);
-    // flush
-    printk(KERN_INFO "\n");
+    printk(KERN_INFO "%s Sent total of %llu packets\n",prints, sent);
   }
 }
 

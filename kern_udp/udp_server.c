@@ -61,16 +61,16 @@ static void server_start(void){
   udp_server->u_thread = kthread_run((void *)server_listen, NULL, udp_server->name);
   if(udp_server->u_thread >= 0){
     atomic_set(&udp_server->thread_running,1);
-    printk(KERN_INFO "%s Thread running", udp_server->name);
+    printk(KERN_INFO "%s Thread running\n", udp_server->name);
   }else{
-    printk(KERN_INFO "%s Error in starting thread. Terminated", udp_server->name);
+    printk(KERN_INFO "%s Error in starting thread. Terminated\n", udp_server->name);
   }
 }
 
 static int __init server_init(void){
   udp_server = kmalloc(sizeof(udp_service), GFP_KERNEL);
   if(!udp_server){
-    printk(KERN_INFO "Failed to initialize server");
+    printk(KERN_INFO "Failed to initialize server\n");
   }else{
     check_params(ipmy, myip, margs);
     check_operation(&operation, opt);
@@ -88,9 +88,7 @@ static void __exit server_exit(void){
   memcpy(prints,udp_server->name,len);
   udp_server_quit(udp_server, udps_socket);
   if(operation == TROUGHPUT){
-    printk(KERN_INFO "%s Received total of %llu packets", prints, received);
-    // flush
-    printk(KERN_INFO "\n");
+    printk(KERN_INFO "%s Received total of %llu packets\n", prints, received);
   }
 }
 

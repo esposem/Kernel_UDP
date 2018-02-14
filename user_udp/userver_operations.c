@@ -50,7 +50,7 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
       seconds++;
       received +=rec_sec;
       average = (double)received/seconds;
-      printf("Server: Received %llu/sec, Average %.3f\n", rec_sec, average);
+      printf("S: Recv:%lld/sec   Avg:%.3f   Tot:%llu\n", rec_sec, average, received);
       rec_sec = 0;
     }
   }
