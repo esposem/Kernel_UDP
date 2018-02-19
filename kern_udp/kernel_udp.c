@@ -1,36 +1,23 @@
-#include <asm/atomic.h>
-#include <net/sock.h>
-#include <linux/kthread.h>
+#include <linux/version.h>
 #include <linux/slab.h>
+#include <net/sock.h>
 #include <net/inet_common.h>
 #include "kernel_udp.h"
 
-int MAX_MESS_SIZE;
-message_data * request;
-message_data * reply;
 
-void check_params(unsigned char * dest, unsigned int * src, int arg){
-  if(arg != 4){
-    if(arg != 0)
-      printk(KERN_ERR "Ip not valid, using the default one\n");
-    return;
-  }
-  for (size_t i = 0; i < 4; i++) {
-    dest[i] = (char) src[i];
-  }
-  dest[4] = '\0';
+// Handle UDP connection and socket status.
+// TODO show printk only if DEBUG flag is set
+
+void construct_header(struct msghdr * msg, struct sockaddr_in * address){
+  msg->msg_name    = address;
+  msg->msg_namelen = sizeof(struct sockaddr_in);
+  msg->msg_control = NULL;
+  msg->msg_controllen = 0;
+  msg->msg_flags = 0; // this is set after receiving a message
 }
 
-void check_operation(enum operations * operation, char * op){
-  if(op[0] == 'l' || op[0] == 'L'){
-    *operation = LATENCY;
-  }else if(op[0] == 't' || op[0] == 'T'){
-    *operation = TROUGHPUT;
-  }
-}
 
-u32 create_address(u8 *ip)
-{
+u32 create_address(u8 *ip){
   u32 addr = 0;
   int i;
 
@@ -44,41 +31,6 @@ u32 create_address(u8 *ip)
   return addr;
 }
 
-void init_messages(void){
-  size_t size_req = strlen(REQUEST)+1;
-  size_t size_repl = strlen(REPLY)+1;
-  request = kmalloc(sizeof(message_data)+ size_req, GFP_KERNEL);
-  reply = kmalloc(sizeof(message_data)+ size_repl, GFP_KERNEL);
-
-  request->mess_len = size_req;
-  reply->mess_len = size_repl;
-  memcpy(reply->mess_data, REPLY, size_repl);
-  memcpy(request->mess_data, REQUEST, size_req);
-
-  MAX_MESS_SIZE = max(size_req,size_repl);
-}
-
-
-void division(size_t dividend, size_t divisor, char * result, size_t size_res){
-  snprintf(result, size_res, "%zu.%zu", dividend/divisor, (dividend*1000/divisor)%1000);
-}
-
-void check_sock_allocation(udp_service * k, struct socket * s){
-  if(atomic_read(&k->socket_allocated) == 1){
-    // printk(KERN_INFO "%s Released socket\n",k->name);
-    atomic_set(&k->socket_allocated, 0);
-    sock_release(s);
-  }
-}
-
-void construct_header(struct msghdr * msg, struct sockaddr_in * address){
-
-  msg->msg_name    = address;
-  msg->msg_namelen = sizeof(struct sockaddr_in);
-  msg->msg_control = NULL;
-  msg->msg_controllen = 0;
-  msg->msg_flags = 0; // this is set after receiving a message
-}
 
 // returns how many bytes are sent
 int udp_send(struct socket *sock, struct msghdr * header, void * buff, size_t size_buff) {
@@ -113,6 +65,7 @@ int udp_send(struct socket *sock, struct msghdr * header, void * buff, size_t si
   return totbytes;
 }
 
+
 // returns the amount of data that has received
 int udp_receive(struct socket *sock, struct msghdr * header, void * buff, size_t size_buff){
   struct kvec vec;
@@ -132,88 +85,63 @@ int udp_receive(struct socket *sock, struct msghdr * header, void * buff, size_t
   return res;
 }
 
-void udp_init(udp_service * k, struct socket ** s, unsigned char * myip, int myport){
-  int server_err;
-  struct socket *conn_socket;
-  struct sockaddr_in server;
-  struct timeval tv;
+
+int udp_init(struct socket ** s, unsigned char * myip, int myport){
+  int err;
+  struct socket * conn_sock;
+  struct sockaddr_in address;
   mm_segment_t fs;
+  struct timeval tv = {1,0};
+  int flag = 1;
 
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,2,0)
-    server_err = sock_create_kern(&init_net, AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
+    err = sock_create_kern(&init_net, AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
   #else
-    server_err = sock_create_kern(AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
+    err = sock_create_kern(AF_INET, SOCK_DGRAM, IPPROTO_UDP, s);
   #endif
-  if(server_err < 0){
-    printk(KERN_INFO "%s Error %d while creating socket\n",k->name, server_err);
-    atomic_set(&k->thread_running, 0);
-    return;
-  }else{
-    atomic_set(&k->socket_allocated, 1);
-    printk(KERN_INFO "%s Created socket\n",k->name);
+
+  if(err < 0){
+    printk(KERN_ERR "Error %d while creating socket\n", err);
+    *s = NULL;
+    return err;
   }
+  conn_sock = *s;
 
-  conn_socket = *s;
-  server.sin_addr.s_addr = htonl(create_address(myip));
-  server.sin_family = AF_INET;
-  server.sin_port = htons(myport);
+  printk(KERN_INFO "Socket created\n");
 
-  server_err = conn_socket->ops->bind(conn_socket, (struct sockaddr*)&server, sizeof(server));
-  if(server_err < 0) {
-    printk(KERN_INFO "%s Error %d while binding socket %pI4\n",k->name, server_err, &server.sin_addr);
-    atomic_set(&k->socket_allocated, 0);
-    sock_release(conn_socket);
-    atomic_set(&k->thread_running, 0);
-    return;
+  fs = get_fs();
+  set_fs(KERNEL_DS);
+  kernel_setsockopt(conn_sock, SOL_SOCKET, SO_RCVTIMEO , (char * )&tv, sizeof(tv));
+  kernel_setsockopt(conn_sock, SOL_SOCKET, SO_REUSEADDR , (char * )&flag, sizeof(int));
+  kernel_setsockopt(conn_sock, SOL_SOCKET, SO_REUSEPORT , (char * )&flag, sizeof(int));
+  set_fs(fs);
+
+  address.sin_addr.s_addr = htonl(create_address(myip));
+  address.sin_family = AF_INET;
+  address.sin_port = htons(myport);
+
+  err = conn_sock->ops->bind(conn_sock, (struct sockaddr*)&address, sizeof(address));
+  if(err < 0) {
+    printk(KERN_ERR "Error %d while binding socket %pI4\n", err, &address.sin_addr);
+    sock_release(conn_sock);
+    *s = NULL;
+    return err;
   }else{
     // get the actual random port and update myport
     int i = (int) sizeof(struct sockaddr_in);
-    inet_getname(conn_socket, (struct sockaddr *) &server, &i , 0);
-    myport = ntohs(server.sin_port);
-    printk(KERN_INFO "%s Socket is bind to %pI4:%d\n",k->name, &server.sin_addr, myport);
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-    fs = get_fs();
-	  set_fs(KERNEL_DS);
-    kernel_setsockopt(conn_socket, SOL_SOCKET, SO_RCVTIMEO, (char * )&tv, sizeof(tv));
-    set_fs(fs);
+    inet_getname(conn_sock, (struct sockaddr *) &address, &i , 0);
+    printk(KERN_INFO "Socket is bind to %pI4:%d\n", &address.sin_addr, ntohs(address.sin_port));
   }
+  return 0;
 }
 
-void init_service(udp_service * k, char * name){
-  memset(k, 0, sizeof(udp_service));
-  atomic_set(&k->socket_allocated, 0);
-  atomic_set(&k->thread_running, 0);
-  size_t stlen = strlen(name) + 1;
-  k->name = kmalloc(stlen, GFP_KERNEL);
-  memcpy(k->name, name, stlen);
-  printk(KERN_INFO "%s Initialized\n", k->name);
+
+int sock_allocated(struct socket * s){
+  return s != NULL;
 }
 
-void udp_server_quit(udp_service * k, struct socket * s){
-  int ret;
-  if(k!= NULL){
-    if(atomic_read(&k->thread_running) == 1){
-      atomic_set(&k->thread_running, 0);
-      if((ret = kthread_stop(k->u_thread)) == 0){
-        printk(KERN_INFO "%s Terminated thread\n", k->name);
-      }else{
-        printk(KERN_INFO "%s Error %d in terminating thread\n", k->name, ret);
-      }
-    }else{
-      printk(KERN_INFO "%s Thread was already stopped\n", k->name);
-    }
-
-    if(atomic_read(&k->socket_allocated) == 1){
-      atomic_set(&k->socket_allocated, 0);
-      sock_release(s);
-      printk(KERN_INFO "%s Released socket\n", k->name);
-    }
-    printk(KERN_INFO "%s Module unloaded\n", k->name);
-    kfree(k->name);
-    kfree(k);
-  }else{
-    printk(KERN_INFO "Module was NULL, terminated\n");
+void release_socket(struct socket * s){
+  if(s){
+    sock_release(s);
   }
-
 }

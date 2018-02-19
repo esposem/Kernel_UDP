@@ -1,19 +1,24 @@
 obj-m += udp_client.o
 obj-m += udp_server.o
 
+K_DIR:= kern_udp
+
+COMMON_FILES:= $(K_DIR)/kernel_udp.o $(K_DIR)/k_file.o \
+							$(K_DIR)/kernel_service.o $(K_DIR)/kernel_message.o
+
 udp_server-y:= \
-	kern_udp/udp_server.o \
-	kern_udp/kernel_udp.o \
-	kern_udp/kserver_operations.o
+	$(COMMON_FILES) \
+	$(K_DIR)/udp_server.o \
+	$(K_DIR)/kserver_operations.o
 
 udp_client-y:= \
-	kern_udp/udp_client.o \
-	kern_udp/kernel_udp.o \
-	kern_udp/kclient_operations.o
+	$(COMMON_FILES) \
+	$(K_DIR)/udp_client.o \
+	$(K_DIR)/kclient_operations.o
 
 # ADDITIONAL_FLAG:= #add here if you want to give flags to modules
 USER_FLAGS:= -I$(PWD)/user_udp/include -O2
-EXTRA_CFLAGS:=  -I$(PWD)/kern_udp/include -O2 # $(ADDITIONAL_FLAG)
+EXTRA_CFLAGS:=  -I$(PWD)/$(K_DIR)/include -O2 # $(ADDITIONAL_FLAG)
 
 ccflags-y:= -std=gnu99 -Wno-declaration-after-statement
 

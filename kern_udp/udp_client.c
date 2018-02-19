@@ -1,10 +1,15 @@
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/kthread.h>
-#include "kernel_udp.h"
+#include <linux/slab.h>
+
 #include "kclient_operations.h"
 
 //############## CLIENT IP AND PORT (this module) #######
+static char * name = "k_client";
+static char print_name[SIZE_NAME];
+module_param(name, charp, S_IRUGO);
+MODULE_PARM_DESC(name,"The module name");
+
 static unsigned char ipmy[5] = {127,0,0,1,'\0'};
 static unsigned int myip[5];
 static int margs;
@@ -38,91 +43,62 @@ static unsigned long ns = 1;
 module_param(ns,long, S_IRUGO);
 MODULE_PARM_DESC(ns,"Delay between each send call (Throughput mode only)");
 
-static long tsec = -1;
-module_param(tsec,long, S_IRUGO);
+static unsigned long tsec = -1;
+module_param(tsec, ulong, S_IRUGO);
 MODULE_PARM_DESC(tsec,"How long the client should send messages (Throughput mode only)");
 //######################################################
 
 udp_service * udp_client;
-struct socket * udpc_socket;
 
 static void connection_handler(void) {
-
   struct sockaddr_in dest_addr;
 
-  init_messages();
-  message_data * rcv_buff = kmalloc(sizeof(message_data) + MAX_UDP_SIZE, GFP_KERNEL);
-  message_data * send_buff = kmalloc(sizeof(message_data) + MAX_MESS_SIZE, GFP_KERNEL);
-
-  rcv_buff->mess_len = MAX_UDP_SIZE;
-  send_buff->mess_len = MAX_MESS_SIZE;
-  memcpy(send_buff->mess_data, request->mess_data, request->mess_len);
-
-  dest_addr.sin_addr.s_addr = htonl(create_address(serverip));
-  dest_addr.sin_family = AF_INET;
-  dest_addr.sin_port = htons(destport);
-
+  init_default_messages();
+  message_data * rcv_buff = create_message(0, 1);
+  fill_sockaddr_in(&dest_addr, serverip, AF_INET, destport);
 
   switch(operation){
     case LATENCY:
-      latency(rcv_buff, send_buff, reply, &dest_addr);
+      latency(rcv_buff, request, reply, &dest_addr);
       break;
     case TROUGHPUT:
-      troughput(send_buff, &dest_addr, ns, tsec);
+      troughput(request, &dest_addr, ns, tsec);
       break;
     default:
-      print(rcv_buff, send_buff, reply, &dest_addr);
+      print(rcv_buff, request, reply, &dest_addr);
       break;
   }
 
-  check_sock_allocation(udp_client, udpc_socket);
-  kfree(rcv_buff);
-  kfree(send_buff);
+  delete_message(rcv_buff);
+  del_default_messages();
 }
 
 static int client_listen(void) {
-  udp_init(udp_client, &udpc_socket, ipmy, myport);
-  unsigned long l = htonl(create_address(serverip));
-  printk(KERN_INFO "%s Destination is %pI4:%d\n",udp_client->name, &l, destport);
-  if(atomic_read(&udp_client->thread_running) == 1){
-    connection_handler();
-    atomic_set(&udp_client->thread_running, 0);
-  }
+  connection_handler();
+  k_thread_stop(udp_client);
   return 0;
 }
 
 static void client_start(void){
-  udp_client->u_thread = kthread_run((void *)client_listen, NULL, udp_client->name);
-  if(udp_client->u_thread >= 0){
-    atomic_set(&udp_client->thread_running,1);
-    printk(KERN_INFO "%s Thread running\n", udp_client->name);
-  }else{
-    printk(KERN_INFO "%s Error in starting thread. Terminated\n", udp_client->name);
-  }
+  prepare_file(operation);
+  init_service(&udp_client, print_name, ipmy, myport, client_listen, NULL);
 }
 
 static int __init client_init(void) {
-  udp_client = kmalloc(sizeof(udp_service), GFP_KERNEL);
-  if(!udp_client){
-    printk(KERN_INFO "Failed to initialize CLIENT\n");
-  }else{
-    check_params(ipmy, myip, margs);
-    check_params(serverip, destip, sargs);
-    check_operation(&operation, opt);
-    init_service(udp_client, "Client:");
-    printk(KERN_INFO "%s opt: %c, ns: %lu, tsec: %ld\n",udp_client->name, opt[0], ns, tsec);
-    client_start();
-  }
+  check_params(ipmy, myip, margs);
+  check_params(serverip, destip, sargs);
+  check_operation(&operation, opt);
+  adjust_name(print_name, name, SIZE_NAME);
+  printk(KERN_INFO "%s Destination is %d.%d.%d.%d:%d\n",print_name, serverip[0],serverip[1],serverip[2],serverip[3], destport);
+  printk(KERN_INFO "%s opt: %c, ns: %lu, tsec: %ld\n",print_name, opt[0], ns, tsec);
+  client_start();
   return 0;
 }
 
 static void __exit client_exit(void) {
-  size_t len = strlen(udp_client->name)+1;
-  char prints[len];
-  memcpy(prints,udp_client->name,len);
-  udp_server_quit(udp_client, udpc_socket);
+  quit_service(udp_client);
   if(operation == TROUGHPUT){
-    printk(KERN_INFO "%s Sent total of %llu packets\n",prints, sent);
+    printk(KERN_INFO "%s Sent total of %llu packets\n",print_name, sent);
   }
 }
 

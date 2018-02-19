@@ -162,6 +162,4 @@ void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_c
       break;
     }
   }
-
-
 }

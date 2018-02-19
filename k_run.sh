@@ -2,7 +2,7 @@
 server="$(myip=127,0,0,1 myport=3000)"
 client="$(myip=127,0,0,1 myport=4000 destip=127,0,0,1 destport=3000)"
 ns=0
-tsec=-1
+tsec=0
 
 if [[ $1 == "s" ]]; then
   filename="udp_server"
@@ -13,9 +13,7 @@ if [[ $1 == "c" ]]; then
   filename="udp_client"
   options=$client
   if [ ! -z ${3} ] && [ "$3" != "x" ]; then
-    # if [ "$3" != "x" ]; then
       ns=$3
-    # fi
   fi
   if [ ! -z ${4} ] && [ "$4" != "x" ]; then
     tsec=$4

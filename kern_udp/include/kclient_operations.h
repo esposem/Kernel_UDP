@@ -1,7 +1,9 @@
 #ifndef K_CL_OP
 #define K_CL_OP
 
-#include "kernel_udp.h"
+#include <net/sock.h>
+#include "kernel_message.h"
+#include "kernel_service.h"
 
 struct common_data{
   char average[256];
@@ -11,7 +13,6 @@ struct common_data{
 };
 
 extern udp_service * udp_client;
-extern struct socket * udpc_socket;
 extern unsigned long long sent;
 
 extern void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long frac_sec, long tsec);
