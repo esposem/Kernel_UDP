@@ -11,33 +11,31 @@ module_param(name, charp, S_IRUGO);
 MODULE_PARM_DESC(name,"The module name");
 
 static unsigned char ipmy[5] = {127,0,0,1,'\0'};
-static unsigned int myip[5];
-static int margs;
-module_param_array(myip, int, &margs, S_IRUGO);
+static char * myip = NULL;
+module_param(myip, charp, S_IRUGO);
 MODULE_PARM_DESC(myip,"The client ip, default 127.0.0.1");
 
-static int myport = 0; //random port
+static int myport = 3000; // 0 random port
 module_param(myport, int, S_IRUGO);
 MODULE_PARM_DESC(myport,"The receiving port, default is a free random one chosen by system");
 //######################################################
 
 //############## SERVER IP AND PORT (udp_server) #######
 static unsigned char serverip[5] = {127,0,0,1,'\0'};
-static unsigned int destip[5];
-static int sargs;
-module_param_array(destip, int, &sargs, S_IRUGO);
+static char * destip = NULL;
+module_param(destip, charp, S_IRUGO);
 MODULE_PARM_DESC(destip,"The server ip, default 127.0.0.1");
 
-static int destport = 3000;
+static int destport = 4000;
 module_param(destport, int, S_IRUGO);
 MODULE_PARM_DESC(destport,"The server port, default 3000");
 //######################################################
 
 //############## Types of operation #######
-static char * opt = "p";
-static enum operations operation = PRINT;
+static char * opt = "s";
+static enum operations operation = SIMULATION;
 module_param(opt, charp, S_IRUGO);
-MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Latency");
+MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Latency, S or s for Simulation");
 
 static unsigned long ns = 1;
 module_param(ns,long, S_IRUGO);
@@ -48,14 +46,17 @@ module_param(tsec, ulong, S_IRUGO);
 MODULE_PARM_DESC(tsec,"How long the client should send messages (Throughput mode only)");
 //######################################################
 
-udp_service * udp_client;
+udp_service * cl_thread_1;
+udp_service * cl_thread_2;
 
-static void connection_handler(void) {
+static void connection_handler(int thread_num) {
   struct sockaddr_in dest_addr;
-
   init_default_messages();
-  message_data * rcv_buff = create_message(0, 1);
+
+  message_data * rcv_buff = create_rcv_message();
+
   fill_sockaddr_in(&dest_addr, serverip, AF_INET, destport);
+
 
   switch(operation){
     case LATENCY:
@@ -64,29 +65,34 @@ static void connection_handler(void) {
     case TROUGHPUT:
       troughput(request, &dest_addr, ns, tsec);
       break;
-    default:
+    case PRINT:
       print(rcv_buff, request, reply, &dest_addr);
+      break;
+    default:
+      client_simulation(rcv_buff, request, &dest_addr);
       break;
   }
 
   delete_message(rcv_buff);
   del_default_messages();
+
+
 }
 
-static int client_listen(void) {
-  connection_handler();
-  k_thread_stop(udp_client);
+static int client_receive(void) {
+  connection_handler(1);
+  k_thread_stop(cl_thread_1);
   return 0;
 }
 
 static void client_start(void){
   prepare_file(operation);
-  init_service(&udp_client, print_name, ipmy, myport, client_listen, NULL);
+  init_service(&cl_thread_1, print_name, ipmy, myport, client_receive, NULL);
 }
 
 static int __init client_init(void) {
-  check_params(ipmy, myip, margs);
-  check_params(serverip, destip, sargs);
+  check_params(ipmy, myip);
+  check_params(serverip, destip);
   check_operation(&operation, opt);
   adjust_name(print_name, name, SIZE_NAME);
   printk(KERN_INFO "%s Destination is %d.%d.%d.%d:%d\n",print_name, serverip[0],serverip[1],serverip[2],serverip[3], destport);
@@ -96,7 +102,7 @@ static int __init client_init(void) {
 }
 
 static void __exit client_exit(void) {
-  quit_service(udp_client);
+  quit_service(cl_thread_1);
   if(operation == TROUGHPUT){
     printk(KERN_INFO "%s Sent total of %llu packets\n",print_name, sent);
   }

@@ -11,28 +11,27 @@ module_param(name, charp, S_IRUGO);
 MODULE_PARM_DESC(name,"The module name");
 
 static unsigned char ipmy[5] = {127,0,0,1,'\0'};
-static unsigned int myip[5];
-static int margs;
-module_param_array(myip, int, &margs, S_IRUGO);
+static char * myip = NULL;
+module_param(myip, charp, S_IRUGO);
 MODULE_PARM_DESC(myip,"The server ip, default 127.0.0.4");
 
-static int myport = 3000;
+static int myport = 4000;
 module_param(myport, int, S_IRUGO);
 MODULE_PARM_DESC(myport,"The receiving port, default 3000");
 //######################################################
 
 //############## Types of operation #######
-static char * opt = "p";
-static enum operations operation = PRINT;
+static char * opt = "s";
+static enum operations operation = SIMULATION;
 module_param(opt, charp, S_IRUGO);
-MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Latency");
+MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Latency, S or s for Simulation");
 //######################################################
 
 udp_service * udp_server;
 
 static void connection_handler(void){
   init_default_messages();
-  message_data * rcv_buff = create_message(0,1);
+  message_data * rcv_buff = create_rcv_message();
 
   switch(operation){
     case LATENCY:
@@ -41,13 +40,17 @@ static void connection_handler(void){
     case TROUGHPUT:
       troughput(rcv_buff, request);
       break;
-    default:
+    case PRINT:
       print(rcv_buff, reply, request);
+      break;
+    default:
+      server_simulation(rcv_buff, request);
       break;
   }
 
   delete_message(rcv_buff);
   del_default_messages();
+
 }
 
 static int server_listen(void){
@@ -57,12 +60,12 @@ static int server_listen(void){
 }
 
 static void server_start(void){
-  prepare_file(operation);
+  // prepare_file(operation);
   init_service(&udp_server, print_name, ipmy, myport, server_listen, NULL);
 }
 
 static int __init server_init(void){
-  check_params(ipmy, myip, margs);
+  check_params(ipmy, myip);
   check_operation(&operation, opt);
   adjust_name(print_name, name, SIZE_NAME);
   printk(KERN_INFO "%s opt: %c\n",print_name, opt[0]);

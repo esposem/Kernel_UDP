@@ -35,7 +35,7 @@ if cd $path > /dev/null && make > /dev/null && cd -  > /dev/null;then
   echo "Module Successfully complied"
 else
   echo "Could not compile the module"
-  # kill $$
+  kill $$
 fi
 
 if sudo insmod ./$filename.ko $options opt=$2 ns=$ns tsec=$tsec; then

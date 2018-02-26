@@ -6,7 +6,6 @@
 
 
 // Handle UDP connection and socket status.
-// TODO show printk only if DEBUG flag is set
 
 void construct_header(struct msghdr * msg, struct sockaddr_in * address){
   msg->msg_name    = address;

@@ -4,6 +4,44 @@
 
 unsigned long long received = 0;
 
+void server_simulation(message_data * rcv_buf, message_data * rcv_check){
+
+  int bytes_received, bytes_sent;
+  struct msghdr reply, hdr;
+  struct sockaddr_in dest;
+  struct socket * sock = get_service_sock(udp_server);
+  construct_header(&reply, NULL);
+  construct_header(&hdr, &dest);
+
+  char * recv_data = get_message_data(rcv_buf), \
+       * check_data = get_message_data(rcv_check);
+
+  size_t check_size = get_message_size(rcv_check), \
+     check_total_s = get_total_mess_size(rcv_check), \
+        recv_size = get_total_mess_size(rcv_buf);
+
+  if(recv_size < check_total_s){
+   printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", get_service_name(udp_server));
+   return;
+  }
+
+  while(1){
+
+   if(kthread_should_stop() || signal_pending(current)){
+     break;
+   }
+
+   bytes_received = udp_receive(sock,&hdr,rcv_buf, recv_size);
+
+   if(bytes_received == check_total_s && memcmp(recv_data,check_data,check_size) == 0){
+     reply.msg_name = (struct sockaddr_in *) hdr.msg_name;
+     if((bytes_sent = udp_send(sock, &reply, rcv_buf, bytes_received)) != bytes_received){
+       printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(udp_server), bytes_sent);
+     }
+   }
+  }
+}
+
 void troughput(message_data * rcv_buf, message_data * rcv_check){
 
   struct timespec departure_time, arrival_time;

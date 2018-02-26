@@ -1,3 +1,5 @@
+CONFIG_MODULE_SIG=n
+
 obj-m += udp_client.o
 obj-m += udp_server.o
 

@@ -10,17 +10,31 @@ message_data * reply;
 message_data * test;
 
 struct message_data{
+  int id;
   size_t mess_len;
   char mess_data[0];
 };
 
-message_data * create_message(size_t size_data, int recv){
-  if(recv)
-    size_data = MAX_UDP_SIZE;
+message_data * create_rcv_message(void){
+  return create_message(NULL, MAX_MESS_SIZE, -1);
+}
 
+message_data * create_message(char * data, size_t size_data, int id){
   message_data * res = kmalloc(sizeof(struct message_data) + size_data, GFP_KERNEL);
+  memset(res,'\0',sizeof(struct message_data) + size_data);
   res->mess_len = size_data;
+  res->id = id;
+  if(data)
+    memcpy(res->mess_data, data, size_data);
   return res;
+}
+
+int get_message_id(message_data * mess){
+  return mess->id;
+}
+
+void set_message_id(message_data * mess, int id){
+  mess->id = id;
 }
 
 char * get_message_data(message_data * mess){
@@ -30,6 +44,10 @@ char * get_message_data(message_data * mess){
 
 size_t get_message_size(message_data * mess){
   return mess->mess_len;
+}
+
+size_t get_total_mess_size(message_data * mess){
+  return mess->mess_len + sizeof(struct message_data);
 }
 
 
@@ -43,13 +61,10 @@ void init_default_messages(void){
   size_t size_repl = strlen(REPLY)+1;
   size_t size_test = strlen(TEST)+1;
   MAX_MESS_SIZE = max(max(size_req,size_repl), size_test);
-  request = kmalloc(sizeof(message_data)+ MAX_MESS_SIZE, GFP_KERNEL);
-  reply = kmalloc(sizeof(message_data)+ MAX_MESS_SIZE, GFP_KERNEL);
-  test = kmalloc(sizeof(message_data)+ MAX_MESS_SIZE, GFP_KERNEL);
+  request = create_message(NULL, MAX_MESS_SIZE, -1);
+  reply = create_message(NULL, MAX_MESS_SIZE, -1);
+  test = create_message(NULL, MAX_MESS_SIZE, -1);
 
-  request->mess_len = MAX_MESS_SIZE;
-  reply->mess_len = MAX_MESS_SIZE;
-  test->mess_len = MAX_MESS_SIZE;
   memset(reply->mess_data, '\0', MAX_MESS_SIZE);
   memset(request->mess_data, '\0', MAX_MESS_SIZE);
   memset(test->mess_data, '\0', MAX_MESS_SIZE);

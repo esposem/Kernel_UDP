@@ -86,23 +86,18 @@ void check_operation(enum operations * operation, char * op){
     *operation = LATENCY;
   }else if(op[0] == 't' || op[0] == 'T'){
     *operation = TROUGHPUT;
-  }else if(op[0] != 'p' && op[0] != 'P'){
+  }else if(op[0] == 'p' && op[0] == 'P'){
+    *operation = PRINT;
+  }else if(op[0] != 's' && op[0] != 'S'){
     printk(KERN_ERR "Opt not valid, using the default one\n");
-    *op = 'p';
+    *op = 's';
   }
 }
 
 
-void check_params(unsigned char * dest, unsigned int * src, int arg){
-  if(arg != 4){
-    if(arg != 0)
-      printk(KERN_ERR "Ip not valid, using the default one\n");
-    return;
-  }
-  for (size_t i = 0; i < 4; i++) {
-    dest[i] = (char) src[i];
-  }
-  dest[4] = '\0';
+void check_params(unsigned char * dest, char * src){
+  if(src != NULL)
+    sscanf(src, "%hhu.%hhu.%hhu.%hhu",&dest[0], &dest[1], &dest[2], &dest[3]);
 }
 
 
