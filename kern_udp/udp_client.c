@@ -44,6 +44,11 @@ MODULE_PARM_DESC(ns,"Delay between each send call (Throughput mode only)");
 static unsigned long tsec = -1;
 module_param(tsec, ulong, S_IRUGO);
 MODULE_PARM_DESC(tsec,"How long the client should send messages (Throughput mode only)");
+
+static unsigned int nclients = 10;
+module_param(nclients, uint, S_IRUGO);
+MODULE_PARM_DESC(nclients,"The receiving number of clients to simulate");
+
 //######################################################
 
 udp_service * cl_thread_1;
@@ -69,7 +74,7 @@ static void connection_handler(int thread_num) {
       print(rcv_buff, request, reply, &dest_addr);
       break;
     default:
-      client_simulation(rcv_buff, request, &dest_addr);
+      client_simulation(rcv_buff, request, &dest_addr, nclients);
       break;
   }
 
@@ -96,7 +101,7 @@ static int __init client_init(void) {
   check_operation(&operation, opt);
   adjust_name(print_name, name, SIZE_NAME);
   printk(KERN_INFO "%s Destination is %d.%d.%d.%d:%d\n",print_name, serverip[0],serverip[1],serverip[2],serverip[3], destport);
-  printk(KERN_INFO "%s opt: %c, ns: %lu, tsec: %ld\n",print_name, opt[0], ns, tsec);
+  printk(KERN_INFO "%s opt: %c, ns: %lu, tsec: %ld, nclients:%d\n",print_name, opt[0], ns, tsec, nclients);
   client_start();
   return 0;
 }

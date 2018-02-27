@@ -39,6 +39,8 @@ void init_service(udp_service ** k, char * name, unsigned char * myip, int mypor
   if(service){
     int len = strlen(name)+1 > 15 ? 15 : strlen(name)+1;
     memcpy(service->name, name, len);
+    service->k_thread = NULL;
+    service->sock = NULL;
     if(udp_init(&(service->sock), myip, myport) >=0){
       create_thread(service, funct, data);
     }

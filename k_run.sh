@@ -3,6 +3,7 @@ server="$(myip=127,0,0,1 myport=3000)"
 client="$(myip=127,0,0,1 myport=4000 destip=127,0,0,1 destport=3000)"
 ns=0
 tsec=0
+nclients=10
 
 if [[ $1 == "s" ]]; then
   filename="udp_server"
@@ -17,6 +18,9 @@ if [[ $1 == "c" ]]; then
   fi
   if [ ! -z ${4} ] && [ "$4" != "x" ]; then
     tsec=$4
+  fi
+  if [ ! -z ${5} ] && [ "$5" != "x" ]; then
+    nclients=$5
   fi
 fi
 
@@ -38,7 +42,7 @@ else
   kill $$
 fi
 
-if sudo insmod ./$filename.ko $options opt=$2 ns=$ns tsec=$tsec; then
+if sudo insmod ./$filename.ko $options opt=$2 ns=$ns tsec=$tsec nclients=$nclients; then
   echo "Successfully loaded Module"
 
   read -rp "Press enter to remove the module or Ctrl+C to exit..." key

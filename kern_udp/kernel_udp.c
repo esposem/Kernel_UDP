@@ -121,7 +121,7 @@ int udp_init(struct socket ** s, unsigned char * myip, int myport){
 
   err = conn_sock->ops->bind(conn_sock, (struct sockaddr*)&address, sizeof(address));
   if(err < 0) {
-    printk(KERN_ERR "Error %d while binding socket %pI4\n", err, &address.sin_addr);
+    printk(KERN_ERR "Error %d while binding socket to %pI4\n", err, &address.sin_addr);
     sock_release(conn_sock);
     *s = NULL;
     return err;
