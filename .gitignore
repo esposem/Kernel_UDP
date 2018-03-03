@@ -5,6 +5,3 @@
 user_client
 user_server
 module*
-*.txt
-common/*
-results/*
