@@ -91,7 +91,7 @@ static int client_receive(void) {
 }
 
 static void client_start(void){
-  prepare_file(operation);
+  prepare_file(operation, nclients);
   init_service(&cl_thread_1, print_name, ipmy, myport, client_receive, NULL);
 }
 

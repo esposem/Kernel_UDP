@@ -4,6 +4,19 @@
 
 unsigned long long received = 0;
 
+struct stats{
+  unsigned long long count;
+  unsigned long long tot_time;
+};
+#define INTERVAL 1000
+#define max_wait  _1_SEC_TO_NS / INTERVAL
+#define NSEC 60
+#define SSIZE INTERVAL * NSEC
+
+unsigned long long diff_time(struct timespec * op1, struct timespec * op2){
+  return (op1->tv_sec - op2->tv_sec)*_1_SEC_TO_NS + op1->tv_nsec - op2->tv_nsec;
+}
+
 void server_simulation(message_data * rcv_buf, message_data * rcv_check){
 
   int bytes_received, bytes_sent;
@@ -13,6 +26,12 @@ void server_simulation(message_data * rcv_buf, message_data * rcv_check){
   construct_header(&reply, NULL);
   construct_header(&hdr, &dest);
 
+  // struct stats * statistics = kmalloc(sizeof(struct stats)*SSIZE , GFP_KERNEL);
+  // memset(statistics, 0, sizeof(struct stats)*SSIZE);
+  // unsigned long long total_received = 0, tot_life = 0;
+  // long waiting = 0;
+  // int stat_count = 0;
+
   char * recv_data = get_message_data(rcv_buf), \
        * check_data = get_message_data(rcv_check);
 
@@ -20,26 +39,79 @@ void server_simulation(message_data * rcv_buf, message_data * rcv_check){
      check_total_s = get_total_mess_size(rcv_check), \
         recv_size = get_total_mess_size(rcv_buf);
 
+  // struct timespec init_second, current_time;
+  // struct timespec * init_secondp = &init_second, \
+  //                 * current_timep = &current_time, \
+  //                 * temp;
+
   if(recv_size < check_total_s){
    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", get_service_name(udp_server));
    return;
   }
 
+  // getrawmonotonic(init_secondp);
+
   while(1){
 
-   if(kthread_should_stop() || signal_pending(current)){
-     break;
-   }
+    if(kthread_should_stop() || signal_pending(current)){ // || stat_count >= SSIZE){
+      break;
+    }
 
-   bytes_received = udp_receive(sock,&hdr,rcv_buf, recv_size);
+    bytes_received = udp_receive(sock,&hdr,rcv_buf, recv_size);
+    // getrawmonotonic(current_timep);
 
-   if(bytes_received == check_total_s && memcmp(recv_data,check_data,check_size) == 0){
-     reply.msg_name = (struct sockaddr_in *) hdr.msg_name;
-     if((bytes_sent = udp_send(sock, &reply, rcv_buf, bytes_received)) != bytes_received){
-       printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(udp_server), bytes_sent);
-     }
-   }
+    if(bytes_received == check_total_s && memcmp(recv_data,check_data,check_size) == 0){
+      reply.msg_name = (struct sockaddr_in *) hdr.msg_name;
+      if((bytes_sent = udp_send(sock, &reply, rcv_buf, bytes_received)) != bytes_received){
+        printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(udp_server), bytes_sent);
+      }
+      // total_received++;
+    }
+
+    // if(total_received > 0){
+    //   waiting+= diff_time(current_timep, init_secondp);
+    //   if(waiting >= max_wait){
+    //     tot_life+= waiting;
+    //     waiting = 0;
+    //     if(stat_count < SSIZE){
+    //       statistics[stat_count].count = total_received;
+    //       statistics[stat_count].tot_time = tot_life;
+    //       stat_count++;
+    //     }
+    //   }
+    // }
+
+    // temp = current_timep;
+    // current_timep = init_secondp;
+    // init_secondp = temp;
   }
+
+  // printk(KERN_INFO "%s Writing results into a file...\n", get_service_name(udp_server));
+  //
+  // if(f != NULL){
+  //   char * str = "\"Abs Troughput\"\n#recv\trel_time\n";
+  //   file_write(f,0, str, strlen(str));
+  //
+  //   for (int i = 0; i < stat_count; i++) {
+  //     char arr2[200];
+  //     snprintf(arr2, 200, "%llu %llu\n", statistics[i].count, statistics[i].tot_time);
+  //     file_write(f,0, arr2, strlen(arr2));
+  //   }
+  //
+  //   // str = "\n\n\"Rel Troughput\"\n#recv\trel_time\n";
+  //   // file_write(f,0, str, strlen(str));
+  //   //
+  //   // for (int i = 1; i < stat_count; i++) {
+  //   //   char arr2[200];
+  //   //   snprintf(arr2, 200, "%llu %llu\n", statistics[i].count - statistics[i-1].count, statistics[i].tot_time);
+  //   //   file_write(f,0, arr2, strlen(arr2));
+  //   // }
+  //   file_close(f);
+  //   printk("%s Done\n", get_service_name(udp_server));
+  // }else{
+  //   printk(KERN_ERR "File error\n");
+  // }
+  // kfree(statistics);
 }
 
 void troughput(message_data * rcv_buf, message_data * rcv_check){

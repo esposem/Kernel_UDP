@@ -36,6 +36,7 @@ USER_SERV_HEAD:= $(patsubst %,$(I_DIR)/include/%,$(_USER_CL_HEAD))
 
 all: user_client user_server
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	make results/read_res 
 
 %.o: $(I_DIR)/%.c $(USER_CL_HEAD) $(USER_SERV_HEAD)
 	$(CC) $(USER_FLAGS) $(ccflags-y) -c $< -o $@
@@ -48,4 +49,4 @@ user_server: $(USER_SERV_OBJ)
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-	rm user_client user_server
+	rm user_client user_server results/read_res

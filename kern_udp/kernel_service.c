@@ -110,9 +110,12 @@ void adjust_name(char * print, char * src, int size_name){
 }
 
 
-int prepare_file(enum operations op ){
+int prepare_file(enum operations op, unsigned int nclients){
   if(op != PRINT){
-    f = file_open("./results.txt", O_CREAT |  O_RDWR | O_APPEND, S_IRWXU);
+    char filen[100];
+    snprintf(filen, 100, "./results/data/results%u.txt", nclients);
+    file_close(file_open(filen, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU));
+    f = file_open(filen, O_CREAT | O_RDWR | O_APPEND, S_IRWXU);
     if(!f){
       printk(KERN_ERR "Cannot create file\n");
       return -1;

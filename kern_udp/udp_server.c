@@ -60,7 +60,7 @@ static int server_listen(void){
 }
 
 static void server_start(void){
-  // prepare_file(operation);
+  // prepare_file(operation, 0);
   init_service(&udp_server, print_name, ipmy, myport, server_listen, NULL);
 }
 

@@ -26,7 +26,7 @@ extern void check_operation(enum operations * operation, char * op);
 extern void check_params(unsigned char * dest, char * src);
 extern void adjust_name(char * print, char * src, int size_name);
 
-extern int prepare_file(enum operations op);
+extern int prepare_file(enum operations op, unsigned int nclients);
 
 
 #endif

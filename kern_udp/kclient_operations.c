@@ -1,223 +1,75 @@
-#include <linux/hrtimer.h>
-#include <linux/ktime.h>
-#include <linux/delay.h>
-#include <linux/wait.h>
-#include <linux/list.h>
 #include "kclient_operations.h"
 #include "kernel_udp.h"
 #include "k_file.h"
 
 unsigned long long sent = 0;
 
-unsigned long long diff_time(struct timespec * op1, struct timespec * op2){
+unsigned long diff_time(struct timespec * op1, struct timespec * op2){
   return (op1->tv_sec - op2->tv_sec)*_1_SEC_TO_NS + op1->tv_nsec - op2->tv_nsec;
 }
 
 #define SIZE_SAMPLE 1200
-#define INTERVAL_SIZE 1000
-int max_wait =  _1_SEC_TO_NS;
-
-struct stats{
-  long count;
-  long sample_lat;
-  unsigned long long tot_time;
-};
+#define TIME_SAMPLE _1_SEC_TO_NS / 10 // 100 ms after how munch should it keep the sample
+#define MAX_MESS_WAIT _1_SEC_TO_NS / 10 // max amount a message can wait
 
 struct client{
   // id the client
   int id;
-
   // flag to check if it is able to send or not
   int busy;
+  int send_test; // when not busy, send latency test
   // how much it's waiting for packet 0-1sec max
   long waiting;
   // keeps track of sample latency
   struct timespec start_lat;
-
-  unsigned long long total_sent;
+  int time_valid;
   unsigned long long total_received;
-  // how long since its first send.
-  // updated only if sample is received, or waiting expires
-  unsigned long long life_time;
 };
 
-struct mess_list{
-  int id;
-  struct list_head to_send;
-};
-
-// LIST_HEAD(to_send)
 
 void init_clients(struct client * cl, int n){
   for (int i = 0; i < n; i++) {
     cl[i].id = i;
     cl[i].busy = 0;
-    cl[i].total_sent = 0;
-    cl[i].total_received = 0;
+    cl[i].send_test = 0;
     cl[i].waiting = 0;
-    cl[i].life_time = 0;
+    cl[i].total_received = 0;
   }
 }
 
-static void print_cl_info(struct client * cl, char * add){
-  printk("%s Cl:%d busy:%d sent:%llu recv:%llu wait:%ld life:%llu\n", add, cl->id, cl->busy, cl->total_sent, cl->total_received, cl->waiting, cl->life_time);
+static int sample_send(struct client * cl){
+  return cl->send_test == 1;
 }
 
-static int is_sample(struct client * cl){
-  return (cl->total_sent % INTERVAL_SIZE) == 0;
+static void string_write(char * str){
+  file_write(f,0, str, strlen(str));
 }
 
-static void write_results(int nclients, struct client * cl, struct stats * statistics){
+static void write_results(int nclients, struct client * cl, unsigned long * troughput, unsigned long * sample_lat){
   printk(KERN_INFO "%s Writing results into a file...\n", get_service_name(cl_thread_1));
   if(f != NULL){
+    int size = sizeof(unsigned long long) + sizeof(unsigned long) + 50;
+    char * data = kmalloc(size, GFP_KERNEL);
 
-    file_write(f,0, "C\tcount\tsample\tabs_time\n", strlen("C\tcount\tsample\tabs_time\n"));
-
-    for (int i = 0; i < nclients; i++) {
-      char arr2[200];
-      char res[100];
-      division((cl[i].total_sent-cl[i].total_received)*100,cl[i].total_sent,res, 100);
-      snprintf(arr2, 200, "Cl%d sent:%llu recv:%llu perc lost:%s\n", i, cl[i].total_sent, cl[i].total_received, res);
-      file_write(f,0, arr2, strlen(arr2));
-      for (int j = 1; j < SIZE_SAMPLE; j++) {
-        char arr[200];
-        snprintf(arr, 200, "%d\t%ld\t%ld\t%llu\n", i, statistics[i*SIZE_SAMPLE + j].count, statistics[i*SIZE_SAMPLE + j].sample_lat, statistics[i*SIZE_SAMPLE + j].tot_time - statistics[i*SIZE_SAMPLE + j -1].tot_time);
-        file_write(f,0, arr, strlen(arr));
-      }
+    snprintf(data, size, "# %u %d\n", SIZE_SAMPLE, nclients);
+    string_write(data);
+    char * str = "#troughput\tlatency\n";
+    string_write(str);
+    for (int i = 100; i < SIZE_SAMPLE-100; i++) {
+      snprintf(data, size, "%lu\t%lu\n", troughput[i], sample_lat[i*nclients]);
+      string_write(data);
     }
+    str = "\n\n";
+    string_write(str);
+
     file_close(f);
-    printk("Done\n");
+    kfree(data);
+    printk("%s Done\n", get_service_name(cl_thread_1));
   }else{
     printk(KERN_ERR "File error\n");
   }
 }
 
-#if 0
-
-void client_thread_send(){
-  wait_queue_head_t wait;
-  init_waitqueue_head(&wait);
-  wait_event(wait,list_empty(to_send));
-
-  for(int i=0; i < nclients;i++){
-    if (cl[i].busy)
-      continue;
-    set_message_id(send_buf, i);
-
-    if((bytes_sent = udp_send(sock, &hdr, send_buf, size_mess)) != size_mess){
-      printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(cl_thread_1), bytes_sent);
-      continue;
-    }
-    cl[i].busy = 1;
-    cl[i].total_sent++;
-    if(is_sample(&cl[i])){
-      getrawmonotonic(&cl[i].start_lat);
-    }
-  }
-}
-
-void client_thread_receive(message_data * rcv_buf, message_data * send_buf, struct sockaddr_in * dest_addr, unsigned int nclients){
-  char *  recv_data = get_message_data(rcv_buf), \
-       * send_data = get_message_data(send_buf);
-
-  size_t recv_size = get_total_mess_size(rcv_buf), \
-         send_size = get_message_size(send_buf), \
-         size_mess = get_total_mess_size(send_buf);
-
-  if(recv_size < size_mess){
-    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", get_service_name(cl_thread_1));
-    return;
-  }
-
-  struct socket * sock = get_service_sock(cl_thread_1);
-  int bytes_received, bytes_sent, id;
-  long diff = 0;
-  struct msghdr hdr;
-  struct client cl[nclients];
-  struct timespec init_second, current_time;
-  struct timespec * init_secondp = &init_second, \
-                  * current_timep = &current_time, \
-                  * temp;
-
-  struct stats * statistics = kmalloc(sizeof(struct stats)*nclients*SIZE_SAMPLE, GFP_KERNEL);
-  int stat_count[nclients], full = 0;
-  struct stats * s;
-
-  memset(statistics, 0, sizeof(struct stats)*nclients * SIZE_SAMPLE);
-  memset(stat_count, 0, sizeof(stat_count));
-
-
-  printk("%s Started simulation\n", get_service_name(cl_thread_1));
-
-  init_clients(cl, nclients);
-  construct_header(&hdr, dest_addr);
-  getrawmonotonic(init_secondp);
-
-  while (1) {
-
-    if(kthread_should_stop() || signal_pending(current) || full == nclients){
-      break;
-    }
-
-    bytes_received = udp_receive(sock, &hdr, rcv_buf, recv_size);
-    getrawmonotonic(current_timep);
-    // check message has been received correctly
-    if(bytes_received == size_mess &&
-      memcmp(recv_data, send_data, send_size) == 0 &&
-      (id = get_message_id(rcv_buf)) < nclients){
-        struct mess_list * mess = kmalloc(sizeof(struct mess_list), GFP_KERNEL);
-        mess->id = id;
-      list_add_tail()
-      // calculate how much time passed
-      diff = diff_time(current_timep, init_secondp);
-      // update client data
-      cl[id].total_received++;
-      cl[id].busy = 0;
-      // update client life
-      cl[id].life_time += cl[id].waiting + diff;
-      // if sample, save the statistics
-      if(is_sample(&cl[id]) && stat_count[id] < SIZE_SAMPLE){
-        s = &statistics[id * SIZE_SAMPLE + stat_count[id]];
-        s->count = INTERVAL_SIZE;
-        s->sample_lat = diff_time(current_timep, &cl[id].start_lat);
-        s->tot_time = cl[id].life_time;
-        stat_count[id]++;
-        if(stat_count[id] == SIZE_SAMPLE){
-          full++;
-        }
-      }
-      // undo the effect of updates
-      cl[id].waiting = -diff;
-    }else{
-      diff = max_wait;
-    }
-
-    // increasing their waiting time and determines if they
-    // should send a new message
-    for (int i = 0; i < nclients; i++) {
-      cl[i].waiting += diff;
-      if(cl[i].waiting >= max_wait){
-        cl[i].busy = 0;
-        cl[i].life_time += cl[i].waiting;
-        cl[i].waiting = 0;
-        if(is_sample(&cl[i])){
-          stat_count[i]++;
-        }
-      }
-    }
-
-    temp = current_timep;
-    current_timep = init_secondp;
-    init_secondp = temp;
-  }
-
-  if(full == nclients){
-    write_results(nclients, cl, statistics);
-  }
-
-  kfree(statistics);
-}
-#endif
 
 void client_simulation(message_data * rcv_buf, message_data * send_buf, struct sockaddr_in * dest_addr, unsigned int nclients){
   char *  recv_data = get_message_data(rcv_buf), \
@@ -234,21 +86,23 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
 
   struct socket * sock = get_service_sock(cl_thread_1);
   int bytes_received, bytes_sent, id;
-  long diff = 0;
+  unsigned long diff = 0;
   struct msghdr hdr;
-  struct client cl[nclients];
+  struct client * cl = kmalloc(sizeof(struct client) * nclients, GFP_KERNEL);
   struct timespec init_second, current_time;
   struct timespec * init_secondp = &init_second, \
                   * current_timep = &current_time, \
                   * temp;
 
-  struct stats * statistics = kmalloc(sizeof(struct stats)*nclients*SIZE_SAMPLE, GFP_KERNEL);
-  int stat_count[nclients], full = 0;
-  struct stats * s;
+  int tot_elements = nclients*SIZE_SAMPLE;
+  unsigned long * troughput = kmalloc(sizeof(unsigned long)*SIZE_SAMPLE, GFP_KERNEL);
+  unsigned long * sample_lat = kmalloc(sizeof(unsigned long)*tot_elements, GFP_KERNEL);
 
-  memset(statistics, 0, sizeof(struct stats)*nclients * SIZE_SAMPLE);
-  memset(stat_count, 0, sizeof(stat_count));
+  memset(sample_lat, 0, sizeof(unsigned long)*tot_elements);
+  memset(troughput, 0, sizeof(unsigned long)*SIZE_SAMPLE);
 
+  int trough_count=0, lat_count = 0;
+  long  time_spent = 0;
 
   printk("%s Started simulation\n", get_service_name(cl_thread_1));
 
@@ -256,13 +110,13 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
   construct_header(&hdr, dest_addr);
   getrawmonotonic(init_secondp);
 
-  while (1) {
+  while (trough_count < SIZE_SAMPLE) {
 
-    if(kthread_should_stop() || signal_pending(current) || full == nclients){
+    if(kthread_should_stop() || signal_pending(current)){
       break;
     }
 
-    for(int i=0; i < nclients;i++){
+    for(int i=0; i < nclients; i++){
       if (cl[i].busy)
         continue;
       set_message_id(send_buf, i);
@@ -271,56 +125,62 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
         printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(cl_thread_1), bytes_sent);
         continue;
       }
-      cl[i].busy = 1;
-      cl[i].total_sent++;
-      if(is_sample(&cl[i])){
+
+      if(sample_send(&cl[i])){
         getrawmonotonic(&cl[i].start_lat);
+        cl[i].send_test = 0;
+        cl[i].time_valid = 1;
       }
+
+      cl[i].busy = 1;
+
     }
 
     bytes_received = udp_receive(sock, &hdr, rcv_buf, recv_size);
     getrawmonotonic(current_timep);
+
+    // calculate how much time passed
+    diff = diff_time(current_timep, init_secondp);
+
+    time_spent+= diff;
     // check message has been received correctly
     if(bytes_received == size_mess &&
       memcmp(recv_data, send_data, send_size) == 0 &&
       (id = get_message_id(rcv_buf)) < nclients){
 
-      // calculate how much time passed
-      diff = diff_time(current_timep, init_secondp);
       // update client data
       cl[id].total_received++;
-      cl[id].busy = 0;
-      // update client life
-      cl[id].life_time += cl[id].waiting + diff;
+
       // if sample, save the statistics
-      if(is_sample(&cl[id]) && stat_count[id] < SIZE_SAMPLE){
-        s = &statistics[id * SIZE_SAMPLE + stat_count[id]];
-        s->count = INTERVAL_SIZE;
-        s->sample_lat = diff_time(current_timep, &cl[id].start_lat);
-        s->tot_time = cl[id].life_time;
-        stat_count[id]++;
-        if(stat_count[id] == SIZE_SAMPLE){
-          full++;
-        }
+      if(cl[id].time_valid && lat_count < tot_elements){
+        sample_lat[lat_count++] = diff_time(current_timep, &cl[id].start_lat);
+        cl[id].time_valid = 0;
       }
       // undo the effect of updates
-      cl[id].waiting = -diff;
-    }else{
-      diff = max_wait;
+      cl[id].waiting = MAX_MESS_WAIT;
     }
 
-    // increasing their waiting time and determines if they
-    // should send a new message
+
     for (int i = 0; i < nclients; i++) {
       cl[i].waiting += diff;
-      if(cl[i].waiting >= max_wait){
+      if(cl[i].waiting >= MAX_MESS_WAIT){
         cl[i].busy = 0;
-        cl[i].life_time += cl[i].waiting;
         cl[i].waiting = 0;
-        if(is_sample(&cl[i])){
-          stat_count[i]++;
+        if(cl[id].time_valid){
+          cl[id].time_valid = 0;
         }
       }
+    }
+
+    if(time_spent >= TIME_SAMPLE){
+      for (int i = 0; i < nclients; i++) {
+        troughput[trough_count] += cl[i].total_received;
+        cl[i].total_received = 0;
+        cl[i].send_test = 1;
+        cl[id].time_valid = 0;
+      }
+      time_spent = 0;
+      trough_count++;
     }
 
     temp = current_timep;
@@ -328,11 +188,11 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
     init_secondp = temp;
   }
 
-  if(full == nclients){
-    write_results(nclients, cl, statistics);
-  }
+  write_results(nclients, cl, troughput, sample_lat);
 
-  kfree(statistics);
+  kfree(sample_lat);
+  kfree(troughput);
+  kfree(cl);
 }
 
 
