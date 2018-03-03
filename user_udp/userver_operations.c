@@ -4,6 +4,54 @@
 
 unsigned long long received = 0;
 
+#define INTERVAL 1000
+#define max_wait  _1_SEC_TO_NS / INTERVAL
+#define NSEC 60
+#define SSIZE INTERVAL * NSEC
+
+unsigned long long diff_time(struct timespec * op1, struct timespec * op2){
+  return (op1->tv_sec - op2->tv_sec)*_1_SEC_TO_NS + op1->tv_nsec - op2->tv_nsec;
+}
+
+void server_simulation(message_data * rcv_buf, message_data * rcv_check){
+
+  int bytes_received, bytes_sent;
+  struct msghdr reply, hdr;
+  struct sockaddr_in dest;
+  struct iovec iov[1];
+
+  construct_header(&reply, NULL);
+  construct_header(&hdr, &dest);
+
+  char * recv_data = get_message_data(rcv_buf), \
+       * check_data = get_message_data(rcv_check);
+
+  size_t check_size = get_message_size(rcv_check), \
+     check_total_s = get_total_mess_size(rcv_check), \
+        recv_size = get_total_mess_size(rcv_buf);
+
+  if(recv_size < check_total_s){
+   printf("Server: Error, receiving buffer size is smaller than expected message\n");
+   return;
+  }
+
+  printf("Server: Simulation\n");
+
+  while(stop){
+
+    fill_hdr(&hdr, iov, rcv_buf,recv_size);
+    bytes_received = recvmsg(udps_socket, &hdr, MSG_WAITALL);
+
+    if(bytes_received == check_total_s && memcmp(recv_data,check_data,check_size) == 0){
+      reply.msg_name = (struct sockaddr_in *) hdr.msg_name;
+      fill_hdr(&reply, iov, rcv_buf,bytes_received);
+      if((bytes_sent = sendmsg(udps_socket, &reply, 0)) != bytes_received){
+        printf("Server: Error %d in sending: server not active\n", bytes_sent);
+      }
+    }
+  }
+}
+
 void troughput(message_data * rcv_buf, message_data * rcv_check){
 
   struct timeval departure_time, arrival_time;
@@ -11,14 +59,14 @@ void troughput(message_data * rcv_buf, message_data * rcv_check){
   int time_interval = _1_SEC_TO_NS - ABS_ERROR;
 
   double average;
+
   int bytes_received;
+  char * recv_data = get_message_data(rcv_buf), \
+         * check_data = get_message_data(rcv_check);
 
-  char * recv_data = rcv_buf->mess_data, \
-       * check_data = rcv_check->mess_data;
-
-  size_t check_size = rcv_check->mess_len, \
-         recv_size = rcv_buf->mess_len, \
-         size_tmval = sizeof(struct timeval),\
+  size_t check_size = get_message_size(rcv_check), \
+         recv_size = get_message_size(rcv_buf), \
+         size_tmval = sizeof(struct timespec),\
          size_avg = sizeof(average);
 
   if(recv_size < check_size){
@@ -67,13 +115,13 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
   construct_header(&reply, NULL);
   construct_header(&hdr, &dest);
 
-  char * send_data = send_buf->mess_data, \
-       * recv_data = rcv_buf->mess_data, \
-       * check_data = rcv_check->mess_data;
+  char * send_data = get_message_data(send_buf), \
+       * recv_data = get_message_data(rcv_buf), \
+       * check_data = get_message_data(rcv_check);
 
-  size_t check_size = rcv_check->mess_len, \
-         send_size = send_buf->mess_len, \
-         recv_size = rcv_buf->mess_len;
+  size_t check_size = get_message_size(rcv_check), \
+         send_size = get_message_size(send_buf), \
+         recv_size = get_message_size(rcv_buf);
 
   if(recv_size < check_size){
     printf("Server: Error, receiving buffer size is smaller than expected message\n");
@@ -109,13 +157,13 @@ void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_c
   construct_header(&hdr, &dest);
   construct_header(&reply, NULL);
 
-  char * send_data = send_buf->mess_data, \
-       * recv_data = rcv_buf->mess_data, \
-       * check_data = rcv_check->mess_data;
+  char * send_data = get_message_data(send_buf), \
+       * recv_data = get_message_data(rcv_buf), \
+       * check_data = get_message_data(rcv_check);
 
-  size_t check_size = rcv_check->mess_len, \
-         send_size = send_buf->mess_len, \
-         recv_size = rcv_buf->mess_len;
+  size_t check_size = get_message_size(rcv_check), \
+         send_size = get_message_size(send_buf), \
+         recv_size = get_message_size(rcv_buf);
 
   if(recv_size < check_size){
     printf("Server: Error, receiving buffer size is smaller than expected message\n");

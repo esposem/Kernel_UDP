@@ -4,7 +4,7 @@
 
 unsigned long long sent = 0;
 
-unsigned long diff_time(struct timespec * op1, struct timespec * op2){
+static unsigned long diff_time(struct timespec * op1, struct timespec * op2){
   return (op1->tv_sec - op2->tv_sec)*_1_SEC_TO_NS + op1->tv_nsec - op2->tv_nsec;
 }
 
@@ -203,7 +203,7 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
                   * current_timep = &timep.current_time, \
                   * temp;
 
-  unsigned long diff_time;
+  unsigned long diff;
   unsigned long long seconds=0, sent_sec=0;
   int seconds_counter = 0;
   int bytes_sent;
@@ -227,16 +227,16 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
     }
 
     getrawmonotonic(current_timep);
-    diff_time = (current_timep->tv_sec - old_timep->tv_sec)*_1_SEC_TO_NS + current_timep->tv_nsec - old_timep->tv_nsec;
+    diff = diff_time(current_timep, old_timep);
 
     if((bytes_sent = udp_send(get_service_sock(cl_thread_1), &hdr, send_data, send_size)) == send_size){
       sent_sec++;
-      ndelay(ns_int);
+      ndelay(ns_int); // WARNING! BUSY WAIT
     }else{
       printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(cl_thread_1), bytes_sent);
     }
 
-    seconds_counter+= (int) diff_time;
+    seconds_counter+= (int) diff;
 
     if(seconds_counter >= _1_SEC_TO_NS){
       seconds++;
@@ -263,7 +263,7 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
   struct common_data timep;
   unsigned long long total_latency = 0, correctly_received = 0;
   int bytes_received, bytes_sent, loop_closed = 1, time_interval = _1_SEC_TO_NS - ABS_ERROR, one_sec = 0;
-  unsigned long diff_time;
+  unsigned long diff;
 
   char * send_data = get_message_data(send_buf), \
        * recv_data = get_message_data(rcv_buf), \
@@ -305,11 +305,11 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
     // blocks at most for one second
     bytes_received = udp_receive(get_service_sock(cl_thread_1), &hdr, recv_data, recv_size);
     getrawmonotonic(&timep.current_time);
-    diff_time = (timep.current_time.tv_sec - timep.old_time.tv_sec)*_1_SEC_TO_NS + timep.current_time.tv_nsec - timep.old_time.tv_nsec;
+    diff = diff_time(&timep.current_time, &timep.old_time);
 
     if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data, check_data, check_size) == 0){
-      total_latency += diff_time;
-      one_sec += diff_time;
+      total_latency += diff;
+      one_sec += diff;
       correctly_received++;
       loop_closed = 1;
       division(total_latency,correctly_received, timep.average, timep.size_avg);

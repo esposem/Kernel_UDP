@@ -9,5 +9,6 @@ extern unsigned long long received;
 extern void troughput(message_data * rcv_buf, message_data * rcv_check);
 extern void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check);
 extern void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check);
+extern void server_simulation(message_data * rcv_buf, message_data * rcv_check);
 
 #endif

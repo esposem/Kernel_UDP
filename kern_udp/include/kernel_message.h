@@ -15,7 +15,6 @@ typedef struct message_data message_data;
 extern int MAX_MESS_SIZE;
 extern message_data * request;
 extern message_data *  reply;
-extern message_data *  test;
 
 extern void init_default_messages(void);
 extern void del_default_messages(void);

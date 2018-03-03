@@ -59,26 +59,22 @@ void delete_message(message_data * mess){
 void init_default_messages(void){
   size_t size_req = strlen(REQUEST)+1;
   size_t size_repl = strlen(REPLY)+1;
-  size_t size_test = strlen(TEST)+1;
-  MAX_MESS_SIZE = max(max(size_req,size_repl), size_test);
+
+  MAX_MESS_SIZE = max(size_req,size_repl);
   request = create_message(NULL, MAX_MESS_SIZE, -1);
   reply = create_message(NULL, MAX_MESS_SIZE, -1);
-  test = create_message(NULL, MAX_MESS_SIZE, -1);
 
   memset(reply->mess_data, '\0', MAX_MESS_SIZE);
   memset(request->mess_data, '\0', MAX_MESS_SIZE);
-  memset(test->mess_data, '\0', MAX_MESS_SIZE);
 
   memcpy(reply->mess_data, REPLY, size_repl);
   memcpy(request->mess_data, REQUEST, size_req);
-  memcpy(test->mess_data, TEST, size_test);
 }
 
 
 void del_default_messages(void){
   kfree(request);
   kfree(reply);
-  kfree(test);
 }
 
 

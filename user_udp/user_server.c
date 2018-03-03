@@ -27,23 +27,34 @@ void check_args(int argc, char * argv[]){
   int narg = 3;
   printf("Parameters: ");
   for (int i = narg; i < argc; i++) {
-    if(memcmp(argv[i], "-p",2) == 0 || memcmp(argv[i], "-P",2) == 0){
-      printf("%s ", argv[i]);
-      narg++;
-    }else if(memcmp(argv[i], "-t",2) == 0 || memcmp(argv[i], "-T",2) == 0){
-      printf("%s ", argv[i]);
-      operation = TROUGHPUT;
-      narg++;
-    }else if(memcmp(argv[i], "-l",2) == 0 || memcmp(argv[i], "-L",2) == 0){
-      printf("%s ", argv[i]);
-      operation = LATENCY;
-      narg++;
+
+    if(memcmp(argv[i], "-o",2) == 0 || memcmp(argv[i], "-O",2) == 0){
+      i++;
+      if(i < argc){
+        printf("%s ", argv[i-1]);
+        printf("%s ", argv[i]);
+        if(argv[i][0] == 'p' || argv[i][0] == 'P'){
+          operation = PRINT;
+        }else if(argv[i][0] == 't' || argv[i][0] == 'T'){
+          operation = TROUGHPUT;
+        }else if(argv[i][0] == 'l' || argv[i][0] == 'L'){
+          operation = LATENCY;
+        }else if(argv[i][0] == 's' || argv[i][0] == 'S'){
+          operation = SIMULATION;
+        }
+      }else{
+        printf("\nError!\nUsage -o [t | l | p | s]\n");
+        exit(0);
+      }
+      narg+=2;
+    }else{
+      printf("%s not recognised", argv[i]);
     }
   }
   printf("\n");
 
   if(argc < narg){
-    printf("Usage: %s ipaddress port [-p | -l | -t]\n",argv[0]);
+    printf("Usage: %s ipaddress port -o [p | l | t | s]\n",argv[0]);
     exit(0);
   }
 
@@ -86,30 +97,26 @@ void udp_init(void){
 
 void connection_handler(void){
 
-  init_messages();
-  message_data * rcv_buff = malloc(sizeof(message_data) + MAX_UDP_SIZE);
-  message_data * send_buff = malloc(sizeof(message_data) + MAX_MESS_SIZE);
-
-  rcv_buff->mess_len = MAX_UDP_SIZE;
-  send_buff->mess_len = MAX_MESS_SIZE;
-  memcpy(send_buff->mess_data, reply->mess_data, reply->mess_len);
+  init_default_messages();
+  message_data * rcv_buff = create_rcv_message();
 
   switch(operation){
     case LATENCY:
-      latency(rcv_buff, send_buff, request);
+      latency(rcv_buff, reply, request);
       break;
     case TROUGHPUT:
       troughput(rcv_buff, request);
       break;
+    case PRINT:
+      print(rcv_buff, reply, request);
+      break;
     default:
-      print(rcv_buff, send_buff, request);
+      server_simulation(rcv_buff, request);
       break;
   }
 
-  close(udps_socket);
-  free(rcv_buff);
-  free(send_buff);
-  printf("Server closed\n");
+  delete_message(rcv_buff);
+  del_default_messages();
 }
 
 int main(int argc,char *argv[]) {
@@ -118,6 +125,8 @@ int main(int argc,char *argv[]) {
   signal(SIGINT, sig_handler);
   udp_init();
   connection_handler();
+  close(udps_socket);
+  printf("Server closed\n");
 
   return 0;
 }

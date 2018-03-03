@@ -10,7 +10,6 @@
 #include "uclient_operations.h"
 
 int udpc_socket;
-static enum operations operation = PRINT;
 
 static char * serverip;
 static int destport = 3000;
@@ -18,8 +17,10 @@ static int destport = 3000;
 static char * ipmy;
 static int myport = 0;
 
+static enum operations operation = PRINT;
 static unsigned long ns = 1;
 static long tsec = -1;
+static int nclients = 10;
 int stop = 1;
 
 
@@ -33,21 +34,30 @@ void check_args(int argc, char * argv[]){
   int narg = 5;
   printf("Parameters: ");
   for (int i = narg; i < argc; i++) {
-    if(memcmp(argv[i], "-p",2) == 0 || memcmp(argv[i], "-P",2) == 0){
-      printf("%s ", argv[i]);
-      narg++;
-    }else if(memcmp(argv[i], "-t",2) == 0 || memcmp(argv[i], "-T",2) == 0){
-      printf("%s ", argv[i]);
-      operation = TROUGHPUT;
-      narg++;
-    }else if(memcmp(argv[i], "-l",2) == 0 || memcmp(argv[i], "-L",2) == 0){
-      printf("%s ", argv[i]);
-      operation = LATENCY;
-      narg++;
-    }else if(memcmp(argv[i], "-n",2) == 0 || memcmp(argv[i], "-N",2) == 0){
-      printf("%s ", argv[i]);
+
+    if(memcmp(argv[i], "-o",2) == 0 || memcmp(argv[i], "-O",2) == 0){
       i++;
       if(i < argc){
+        printf("%s ", argv[i-1]);
+        printf("%s ", argv[i]);
+        if(argv[i][0] == 'p' || argv[i][0] == 'P'){
+          operation = PRINT;
+        }else if(argv[i][0] == 't' || argv[i][0] == 'T'){
+          operation = TROUGHPUT;
+        }else if(argv[i][0] == 'l' || argv[i][0] == 'L'){
+          operation = LATENCY;
+        }else if(argv[i][0] == 's' || argv[i][0] == 'S'){
+          operation = SIMULATION;
+        }
+      }else{
+        printf("\nError!\nUsage -o [t | l | p | s]\n");
+        exit(0);
+      }
+      narg+=2;
+    } else if(memcmp(argv[i], "-n",2) == 0 || memcmp(argv[i], "-N",2) == 0){
+      i++;
+      if(i < argc){
+        printf("%s ", argv[i-1]);
         printf("%s ", argv[i]);
         ns = atol(argv[i]);
       }else{
@@ -55,23 +65,36 @@ void check_args(int argc, char * argv[]){
         exit(0);
       }
       narg+=2;
-    }else if(memcmp(argv[i], "-s",2) == 0 || memcmp(argv[i], "-S",2) == 0){
-      printf("%s ", argv[i]);
+    }else if(memcmp(argv[i], "-t",2) == 0 || memcmp(argv[i], "-T",2) == 0){
       i++;
       if(i < argc){
+        printf("%s ", argv[i-1]);
         printf("%s ", argv[i]);
         tsec = atol(argv[i]);
       }else{
-        printf("\nError!\nUsage -s duration\n");
+        printf("\nError!\nUsage -t duration\n");
         exit(0);
       }
       narg+=2;
+    }else if(memcmp(argv[i], "-c",2) == 0 || memcmp(argv[i], "-C",2) == 0){
+      i++;
+      if(i < argc){
+        printf("%s ", argv[i-1]);
+        printf("%s ", argv[i]);
+        nclients = atol(argv[i]);
+      }else{
+        printf("\nError!\nUsage -c nclients\n");
+        exit(0);
+      }
+      narg+=2;
+    }else{
+      printf("%s not recognised", argv[i]);
     }
   }
   printf("\n");
 
   if(argc < narg){
-    printf("Usage: %s ipaddress port serveraddress serverport [-p | -l | -t] [-n microseconds] [-s seconds]\n",argv[0]);
+    printf("Usage: %s ipaddress port serveraddress serverport [-o (p | t | l | s) ] [-n microseconds] [-t duration] [-c nclients]\n",argv[0]);
     exit(0);
   }
 
@@ -119,34 +142,30 @@ void connection_handler(void){
 
   struct sockaddr_in dest_addr;
 
-  init_messages();
-  message_data * rcv_buff = malloc(sizeof(message_data) + MAX_UDP_SIZE);
-  message_data * send_buff = malloc(sizeof(message_data) + MAX_MESS_SIZE);
+  init_default_messages();
+  message_data * rcv_buff = create_rcv_message();
 
-  rcv_buff->mess_len = MAX_UDP_SIZE;
-  send_buff->mess_len = MAX_MESS_SIZE;
-  memcpy(send_buff->mess_data, request->mess_data, request->mess_len);
-
-  dest_addr.sin_family=AF_INET;
-  dest_addr.sin_port=htons(destport);
-  dest_addr.sin_addr.s_addr=inet_addr(serverip);
+  fill_sockaddr_in(&dest_addr, serverip, AF_INET, destport);
 
   switch(operation){
     case LATENCY:
-      latency(rcv_buff, send_buff, reply, &dest_addr);
+      latency(rcv_buff, request, reply, &dest_addr);
       break;
     case TROUGHPUT:
-      troughput(send_buff, &dest_addr, ns, tsec);
+      troughput(request, &dest_addr, ns, tsec);
+      break;
+    case PRINT:
+      print(rcv_buff, request, reply, &dest_addr);
       break;
     default:
-      print(rcv_buff, send_buff, reply, &dest_addr);
+      client_simulation(rcv_buff, request, &dest_addr, nclients);
       break;
   }
 
-  close(udpc_socket);
-  free(rcv_buff);
-  free(send_buff);
-  printf("Client closed\n");
+
+  delete_message(rcv_buff);
+  del_default_messages();
+
 }
 
 int main(int argc,char *argv[]) {
@@ -156,6 +175,7 @@ int main(int argc,char *argv[]) {
   udp_init();
   printf("Client: Destination is %s:%d\n", serverip, destport);
   connection_handler();
-
+  close(udpc_socket);
+  printf("Client closed\n");
   return 0;
 }

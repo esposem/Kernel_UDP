@@ -88,11 +88,13 @@ void check_operation(enum operations * operation, char * op){
     *operation = LATENCY;
   }else if(op[0] == 't' || op[0] == 'T'){
     *operation = TROUGHPUT;
-  }else if(op[0] == 'p' && op[0] == 'P'){
+  }else if(op[0] == 'p' || op[0] == 'P'){
     *operation = PRINT;
-  }else if(op[0] != 's' && op[0] != 'S'){
-    printk(KERN_ERR "Opt not valid, using the default one\n");
-    *op = 's';
+  }else if(op[0] == 's' || op[0] == 'S'){
+    *operation = SIMULATION;
+  }else{
+    printk(KERN_ERR "Opt %c not valid, using the default one\n", *op);
+    *op = 'p';
   }
 }
 
