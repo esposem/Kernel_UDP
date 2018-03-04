@@ -2,6 +2,7 @@
 #define U_CL_OP
 
 #include "user_udp.h"
+#include "user_message.h"
 
 extern int udpc_socket;
 extern unsigned long long sent;

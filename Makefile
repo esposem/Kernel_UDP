@@ -1,6 +1,6 @@
 UNAME := $(shell uname)
 
-ifneq ($(UNAME), Linux)
+ifeq ($(UNAME), Linux)
 	obj-m += udp_client.o
 	obj-m += udp_server.o
 
@@ -19,31 +19,34 @@ ifneq ($(UNAME), Linux)
 		$(K_DIR)/udp_client.o \
 		$(K_DIR)/kclient_operations.o
 
-# ADDITIONAL_FLAG:= #add here if you want to give flags to modules
-EXTRA_CFLAGS:=  -I$(PWD)/$(K_DIR)/include -O2 # $(ADDITIONAL_FLAG)
+	# ADDITIONAL_FLAG:= #add here if you want to give flags to modules
+	EXTRA_CFLAGS:=  -I$(PWD)/$(K_DIR)/include -O2 # $(ADDITIONAL_FLAG)
 endif
 
 USER_FLAGS:= -I$(PWD)/user_udp/include -O2
 
 ccflags-y:= -std=gnu99 -Wno-declaration-after-statement
 
-I_DIR:= user_udp
-USER_CL_OBJ:=user_client.o user_udp.o uclient_operations.o
-USER_SERV_OBJ:=user_server.o user_udp.o userver_operations.o
+COMMON_OBJ:=user_udp.o user_message.o
+COMMON_HDR:=user_udp.h user_message.h
 
-_USER_CL_HEAD:= user_udp.h uclient_operations.h
+I_DIR:= user_udp
+USER_CL_OBJ:=user_client.o uclient_operations.o $(COMMON_OBJ)
+USER_SERV_OBJ:=user_server.o userver_operations.o $(COMMON_OBJ)
+
+_USER_CL_HEAD:= user_udp.h uclient_operations.h $(COMMON_HDR)
 USER_CL_HEAD:= $(patsubst %,$(I_DIR)/include/%,$(_USER_CL_HEAD))
 
-_USER_SERV_HEAD:= user_udp.h userver_operations.h
+_USER_SERV_HEAD:= user_udp.h userver_operations.h $(COMMON_HDR)
 USER_SERV_HEAD:= $(patsubst %,$(I_DIR)/include/%,$(_USER_CL_HEAD))
 
 ifeq ($(UNAME), Linux)
 all: user_client user_server
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
-	make results/read_res
+	make results/read_results
 else
 all: user_client user_server
-	make results/read_res
+	make results/read_results
 endif
 
 %.o: $(I_DIR)/%.c $(USER_CL_HEAD) $(USER_SERV_HEAD)
@@ -58,8 +61,8 @@ user_server: $(USER_SERV_OBJ)
 ifeq ($(UNAME), Linux)
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-	rm user_client user_server results/read_res
+	rm user_client user_server results/read_results
 else
 clean:
-	rm user_client user_server *.o results/read_res 
+	rm user_client user_server *.o results/read_results
 endif

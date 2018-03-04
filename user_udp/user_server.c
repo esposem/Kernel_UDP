@@ -8,6 +8,7 @@
 #include <limits.h>
 #include "user_udp.h"
 #include "userver_operations.h"
+#include "user_message.h"
 
 int udps_socket;
 static enum operations operation = PRINT;

@@ -43,8 +43,8 @@ static int sample_send(struct client * cl){
   return cl->send_test == 1;
 }
 
-static void string_write(char * str){
-  write(f, str, strlen(str));
+static int string_write(char * str){
+  return write(f, str, strlen(str));
 }
 
 static void write_results(int nclients, struct client * cl, unsigned long * troughput, unsigned long * sample_lat){

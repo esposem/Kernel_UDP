@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <limits.h>
 #include "user_udp.h"
+#include "user_message.h"
 #include "uclient_operations.h"
 
 int udpc_socket;
