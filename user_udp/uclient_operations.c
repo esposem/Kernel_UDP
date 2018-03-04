@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "uclient_operations.h"
+#include "user_udp.h"
 
 unsigned long long sent =0;
 
@@ -42,34 +43,36 @@ static int sample_send(struct client * cl){
   return cl->send_test == 1;
 }
 
-// static void string_write(char * str){
-//   file_write(f,0, str, strlen(str));
-// }
+static void string_write(char * str){
+  write(f, str, strlen(str));
+}
 
-// static void write_results(int nclients, struct client * cl, unsigned long * troughput, unsigned long * sample_lat){
-//   printf("Client: Writing results into a file...\n", get_service_name(cl_thread_1));
-//   if(f != NULL){
-//     int size = sizeof(unsigned long long) + sizeof(unsigned long) + 50;
-//     char * data = kmalloc(size, GFP_KERNEL);
-//
-//     snprintf(data, size, "# %u %d\n", SIZE_SAMPLE, nclients);
-//     string_write(data);
-//     char * str = "#troughput\tlatency\n";
-//     string_write(str);
-//     for (int i = 100; i < SIZE_SAMPLE-100; i++) {
-//       snprintf(data, size, "%lu\t%lu\n", troughput[i], sample_lat[i*nclients]);
-//       string_write(data);
-//     }
-//     str = "\n\n";
-//     string_write(str);
-//
-//     file_close(f);
-//     kfree(data);
-//     printf("%s Done\n", get_service_name(cl_thread_1));
-//   }else{
-//     printf("File error\n");
-//   }
-// }
+static void write_results(int nclients, struct client * cl, unsigned long * troughput, unsigned long * sample_lat){
+  printf("Client: Writing results into a file...\n");
+  if(f < 0){
+    printf("File error\n");
+    return;
+  }
+
+  int size = sizeof(unsigned long long) + sizeof(unsigned long) + 50;
+  char * data = malloc(size);
+
+  snprintf(data, size, "# %u %d\n", SIZE_SAMPLE, nclients);
+  string_write(data);
+  char * str = "#troughput\tlatency\n";
+  string_write(str);
+  for (int i = 100; i < SIZE_SAMPLE-100; i++) {
+    snprintf(data, size, "%lu\t%lu\n", troughput[i], sample_lat[i*nclients]);
+    string_write(data);
+  }
+  str = "\n\n";
+  string_write(str);
+
+  close(f);
+  free(data);
+  printf("Client: Done\n");
+
+}
 
 
 void client_simulation(message_data * rcv_buf, message_data * send_buf, struct sockaddr_in * dest_addr, unsigned int nclients){
@@ -139,6 +142,7 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
     bytes_received = recvmsg(udpc_socket, &hdr, MSG_WAITALL);
     clock_gettime(CLOCK_MONOTONIC_RAW, current_timep);
 
+
     // calculate how much time passed
     diff = diff_time(current_timep, init_secondp);
 
@@ -160,14 +164,13 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
       cl[id].waiting = MAX_MESS_WAIT;
     }
 
-
     for (int i = 0; i < nclients; i++) {
       cl[i].waiting += diff;
       if(cl[i].waiting >= MAX_MESS_WAIT){
         cl[i].busy = 0;
         cl[i].waiting = 0;
-        if(cl[id].time_valid){
-          cl[id].time_valid = 0;
+        if(cl[i].time_valid){
+          cl[i].time_valid = 0;
         }
       }
     }
@@ -177,7 +180,7 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
         troughput[trough_count] += cl[i].total_received;
         cl[i].total_received = 0;
         cl[i].send_test = 1;
-        cl[id].time_valid = 0;
+        cl[i].time_valid = 0;
       }
       time_spent = 0;
       trough_count++;
@@ -188,10 +191,7 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
     init_secondp = temp;
   }
 
-  for (size_t i = 0; i < trough_count; i++) {
-    printf("%lu\n", troughput[i]);
-  }
-  // write_results(nclients, cl, troughput, sample_lat);
+  write_results(nclients, cl, troughput, sample_lat);
 
   free(sample_lat);
   free(troughput);

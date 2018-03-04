@@ -47,27 +47,27 @@ static void string_write(char * str){
 
 static void write_results(int nclients, struct client * cl, unsigned long * troughput, unsigned long * sample_lat){
   printk(KERN_INFO "%s Writing results into a file...\n", get_service_name(cl_thread_1));
-  if(f != NULL){
-    int size = sizeof(unsigned long long) + sizeof(unsigned long) + 50;
-    char * data = kmalloc(size, GFP_KERNEL);
-
-    snprintf(data, size, "# %u %d\n", SIZE_SAMPLE, nclients);
-    string_write(data);
-    char * str = "#troughput\tlatency\n";
-    string_write(str);
-    for (int i = 100; i < SIZE_SAMPLE-100; i++) {
-      snprintf(data, size, "%lu\t%lu\n", troughput[i], sample_lat[i*nclients]);
-      string_write(data);
-    }
-    str = "\n\n";
-    string_write(str);
-
-    file_close(f);
-    kfree(data);
-    printk("%s Done\n", get_service_name(cl_thread_1));
-  }else{
+  if(f == NULL){
     printk(KERN_ERR "File error\n");
+    return;
   }
+  int size = sizeof(unsigned long long) + sizeof(unsigned long) + 50;
+  char * data = kmalloc(size, GFP_KERNEL);
+
+  snprintf(data, size, "# %u %d\n", SIZE_SAMPLE, nclients);
+  string_write(data);
+  char * str = "#troughput\tlatency\n";
+  string_write(str);
+  for (int i = 100; i < SIZE_SAMPLE-100; i++) {
+    snprintf(data, size, "%lu\t%lu\n", troughput[i], sample_lat[i*nclients]);
+    string_write(data);
+  }
+  str = "\n\n";
+  string_write(str);
+
+  file_close(f);
+  kfree(data);
+  printk("%s Done\n", get_service_name(cl_thread_1));
 }
 
 
@@ -166,8 +166,8 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
       if(cl[i].waiting >= MAX_MESS_WAIT){
         cl[i].busy = 0;
         cl[i].waiting = 0;
-        if(cl[id].time_valid){
-          cl[id].time_valid = 0;
+        if(cl[i].time_valid){
+          cl[i].time_valid = 0;
         }
       }
     }
@@ -177,7 +177,7 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
         troughput[trough_count] += cl[i].total_received;
         cl[i].total_received = 0;
         cl[i].send_test = 1;
-        cl[id].time_valid = 0;
+        cl[i].time_valid = 0;
       }
       time_spent = 0;
       trough_count++;

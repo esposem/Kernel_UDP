@@ -131,11 +131,6 @@ void udp_init(void){
 
   printf("Client: Bind on %s:%d.\n", ipmy, myport);
 
-  // if((connect(udpc_socket, (struct sockaddr *)&serv,sizeof(serv))) < 0) {
-  //   perror("ERROR connecting to server");
-  //   exit(0);
-  // }
-
 }
 
 void connection_handler(void){
@@ -169,11 +164,11 @@ void connection_handler(void){
 }
 
 int main(int argc,char *argv[]) {
-
   check_args(argc, argv);
   signal(SIGINT, sig_handler);
   udp_init();
   printf("Client: Destination is %s:%d\n", serverip, destport);
+  prepare_file(operation, nclients);
   connection_handler();
   close(udpc_socket);
   printf("Client closed\n");

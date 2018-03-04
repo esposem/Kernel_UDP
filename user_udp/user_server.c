@@ -88,11 +88,6 @@ void udp_init(void){
 
   printf("Server: Bind on %s:%d.\n", ipmy, myport);
 
-  // if((connect(udps_socket, (struct sockaddr *)&serv,sizeof(serv))) < 0) {
-  //   perror("ERROR connecting to server");
-  //   exit(0);
-  // }
-
 }
 
 void connection_handler(void){
