@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <limits.h>
 #include "uclient_operations.h"
 #include "user_udp.h"
 
@@ -13,6 +14,8 @@ static unsigned long diff_time(struct timespec * op1, struct timespec * op2){
 #define SIZE_SAMPLE 1200
 #define TIME_SAMPLE _1_SEC_TO_NS / 10 // 100 ms after how munch should it keep the sample
 #define MAX_MESS_WAIT _1_SEC_TO_NS / 10 // max amount a message can wait
+#define DISCARD_INIT 100
+#define DISCARD_END 100
 
 struct client{
   // id the client
@@ -28,6 +31,20 @@ struct client{
   unsigned long long total_received;
 };
 
+struct statistic{
+  unsigned long * data;
+  int count;
+};
+
+static void init_stat(struct statistic * s, size_t size){
+  s->count = 0;
+  s->data = malloc(sizeof(unsigned long)*size);
+  memset(s->data,0,sizeof(unsigned long)*size);
+}
+
+static void del_stat(struct statistic * s){
+  free(s->data);
+}
 
 void init_clients(struct client * cl, int n){
   for (int i = 0; i < n; i++) {
@@ -35,6 +52,7 @@ void init_clients(struct client * cl, int n){
     cl[i].busy = 0;
     cl[i].send_test = 0;
     cl[i].waiting = 0;
+    cl[i].time_valid = 0;
     cl[i].total_received = 0;
   }
 }
@@ -43,13 +61,13 @@ static int sample_send(struct client * cl){
   return cl->send_test == 1;
 }
 
-static int string_write(char * str){
-  return write(f, str, strlen(str));
+static int string_write(char * str, unsigned int nfile){
+  return write(f[nfile], str, strlen(str));
 }
 
-static void write_results(int nclients, struct client * cl, unsigned long * troughput, unsigned long * sample_lat){
+static void write_results(int nclients, struct client * cl, struct statistic * troughput, struct statistic * sample_lat, unsigned int nfile){
   printf("Client: Writing results into a file...\n");
-  if(f < 0){
+  if(f[nfile] < 0){
     printf("File error\n");
     return;
   }
@@ -57,25 +75,26 @@ static void write_results(int nclients, struct client * cl, unsigned long * trou
   int size = sizeof(unsigned long long) + sizeof(unsigned long) + 50;
   char * data = malloc(size);
 
-  snprintf(data, size, "# %u %d\n", SIZE_SAMPLE, nclients);
-  string_write(data);
+  snprintf(data, size, "# %u %d\n", SIZE_SAMPLE-DISCARD_INIT-DISCARD_END, nclients);
+  string_write(data, nfile);
   char * str = "#troughput\tlatency\n";
-  string_write(str);
-  for (int i = 100; i < SIZE_SAMPLE-100; i++) {
-    snprintf(data, size, "%lu\t%lu\n", troughput[i], sample_lat[i*nclients]);
-    string_write(data);
+  string_write(str, nfile);
+  for (int i = DISCARD_INIT; i < SIZE_SAMPLE-DISCARD_END; i++) {
+    snprintf(data, size, "%lu\t%lu\n", troughput->data[i], sample_lat->data[i]);
+    string_write(data, nfile);
   }
   str = "\n\n";
-  string_write(str);
+  string_write(str, nfile);
 
-  close(f);
+  close(f[nfile]);
+  f[nfile] = -1;
   free(data);
   printf("Client: Done\n");
 
 }
 
 
-void client_simulation(message_data * rcv_buf, message_data * send_buf, struct sockaddr_in * dest_addr, unsigned int nclients){
+void client_simulation(message_data * rcv_buf, message_data * send_buf, struct sockaddr_in * dest_addr, unsigned int nclients, unsigned int nfile){
   char *  recv_data = get_message_data(rcv_buf), \
        * send_data = get_message_data(send_buf);
 
@@ -97,17 +116,15 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
                   * current_timep = &current_time, \
                   * temp;
 
-  int tot_elements = nclients*SIZE_SAMPLE;
-  unsigned long * troughput = malloc(sizeof(unsigned long)*SIZE_SAMPLE);
-  unsigned long * sample_lat = malloc(sizeof(unsigned long)*tot_elements);
+  struct statistic troughput;
+  struct statistic sample_lat;
+  init_stat(&troughput, SIZE_SAMPLE);
+  init_stat(&sample_lat, SIZE_SAMPLE);
 
-  memset(sample_lat, 0, sizeof(unsigned long)*tot_elements);
-  memset(troughput, 0, sizeof(unsigned long)*SIZE_SAMPLE);
-
-  int trough_count=0, lat_count = 0;
+  int lat_pick = 0;
   long  time_spent = 0;
 
-  printf("Client: Started simulation\n");
+  printf("Client: Started simulation with %u clients\n", nclients);
 
   init_clients(cl, nclients);
 
@@ -115,7 +132,7 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
   construct_header(&hdr, dest_addr);
   clock_gettime(CLOCK_MONOTONIC_RAW, init_secondp);
 
-  while (trough_count < SIZE_SAMPLE && stop) {
+  while (troughput.count < SIZE_SAMPLE && stop) {
 
     for(int i=0; i < nclients; i++){
       if (cl[i].busy)
@@ -142,7 +159,6 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
     bytes_received = recvmsg(udpc_socket, &hdr, MSG_WAITALL);
     clock_gettime(CLOCK_MONOTONIC_RAW, current_timep);
 
-
     // calculate how much time passed
     diff = diff_time(current_timep, init_secondp);
 
@@ -156,8 +172,8 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
       cl[id].total_received++;
 
       // if sample, save the statistics
-      if(cl[id].time_valid && lat_count < tot_elements){
-        sample_lat[lat_count++] = diff_time(current_timep, &cl[id].start_lat);
+      if(cl[id].time_valid){
+        sample_lat.data[sample_lat.count++] = diff_time(current_timep, &cl[id].start_lat);
         cl[id].time_valid = 0;
       }
       // undo the effect of updates
@@ -170,6 +186,7 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
         cl[i].busy = 0;
         cl[i].waiting = 0;
         if(cl[i].time_valid){
+          sample_lat.data[sample_lat.count++] = ULONG_MAX;
           cl[i].time_valid = 0;
         }
       }
@@ -177,13 +194,14 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
 
     if(time_spent >= TIME_SAMPLE){
       for (int i = 0; i < nclients; i++) {
-        troughput[trough_count] += cl[i].total_received;
+        troughput.data[troughput.count] += cl[i].total_received;
         cl[i].total_received = 0;
-        cl[i].send_test = 1;
-        cl[i].time_valid = 0;
+        // cl[i].time_valid = 0;
       }
+      cl[lat_pick % nclients].send_test = 1;
+      lat_pick++;
       time_spent = 0;
-      trough_count++;
+      troughput.count++;
     }
 
     temp = current_timep;
@@ -191,10 +209,10 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
     init_secondp = temp;
   }
 
-  write_results(nclients, cl, troughput, sample_lat);
+  write_results(nclients, cl, &troughput, &sample_lat, nfile);
 
-  free(sample_lat);
-  free(troughput);
+  del_stat(&sample_lat);
+  del_stat(&troughput);
   free(cl);
 }
 

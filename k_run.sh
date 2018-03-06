@@ -43,7 +43,7 @@ else
   kill $$
 fi
 
-if sudo insmod ./$filename.ko $options opt=$2 ns=$ns tsec=$tsec nclients=$nclients; then
+if sudo insmod ./$filename.ko $options opt=$2 ns=$ns tsec=$tsec ntests=$nclients; then
   echo "Successfully loaded Module"
 
   read -rp "Press enter to remove the module or Ctrl+C to exit..." key

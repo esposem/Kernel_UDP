@@ -45,9 +45,13 @@ static unsigned long tsec = -1;
 module_param(tsec, ulong, S_IRUGO);
 MODULE_PARM_DESC(tsec,"How long the client should send messages (Throughput mode only)");
 
-static unsigned int nclients = 10;
-module_param(nclients, uint, S_IRUGO);
-MODULE_PARM_DESC(nclients,"The receiving number of clients to simulate");
+// static unsigned int nclients = 10;
+// module_param(nclients, uint, S_IRUGO);
+// MODULE_PARM_DESC(nclients,"The number of clients to simulate");
+
+static unsigned int ntests = 1;
+module_param(ntests, uint, S_IRUGO);
+MODULE_PARM_DESC(ntests,"The number of simulation to do (to the power of two)");
 
 //######################################################
 
@@ -61,7 +65,7 @@ static void connection_handler(int thread_num) {
   message_data * rcv_buff = create_rcv_message();
 
   fill_sockaddr_in(&dest_addr, serverip, AF_INET, destport);
-
+  int n = 1;
 
   switch(operation){
     case LATENCY:
@@ -74,7 +78,12 @@ static void connection_handler(int thread_num) {
       print(rcv_buff, request, reply, &dest_addr);
       break;
     default:
-      client_simulation(rcv_buff, request, &dest_addr, nclients);
+      for (size_t i = 0; i < ntests; i++) {
+        client_simulation(rcv_buff, request, &dest_addr, n, i);
+        n*=2;
+      }
+      printk("Simulation ended\n");
+
       break;
   }
 
@@ -91,7 +100,7 @@ static int client_receive(void) {
 }
 
 static void client_start(void){
-  prepare_file(operation, nclients);
+  prepare_files(operation, ntests);
   init_service(&cl_thread_1, print_name, ipmy, myport, client_receive, NULL);
 }
 
@@ -101,13 +110,15 @@ static int __init client_init(void) {
   check_operation(&operation, opt);
   adjust_name(print_name, name, SIZE_NAME);
   printk(KERN_INFO "%s Destination is %d.%d.%d.%d:%d\n",print_name, serverip[0],serverip[1],serverip[2],serverip[3], destport);
-  printk(KERN_INFO "%s opt: %c, ns: %lu, tsec: %ld, nclients:%d\n",print_name, opt[0], ns, tsec, nclients);
+  // printk(KERN_INFO "%s opt: %c, ns: %lu, tsec: %ld, nclients:%u, ntests:%u\n",print_name, opt[0], ns, tsec, nclients, ntests);
+  printk(KERN_INFO "%s opt: %c, ns: %lu, tsec: %ld, ntests:%u\n",print_name, opt[0], ns, tsec, ntests);
   client_start();
   return 0;
 }
 
 static void __exit client_exit(void) {
   quit_service(cl_thread_1);
+  close_files(ntests);
   if(operation == TROUGHPUT){
     printk(KERN_INFO "%s Sent total of %llu packets\n",print_name, sent);
   }

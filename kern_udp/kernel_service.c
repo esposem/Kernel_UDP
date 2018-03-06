@@ -4,7 +4,7 @@
 
 // Handles kthread initialization
 
-struct file * f;
+struct file ** f;
 
 struct udp_service {
   char name[15]; // same as p_name
@@ -112,17 +112,31 @@ void adjust_name(char * print, char * src, int size_name){
 }
 
 
-int prepare_file(enum operations op, unsigned int nclients){
+int prepare_files(enum operations op, unsigned int ntests){
   if(op != PRINT){
-    char filen[100];
-    snprintf(filen, 100, "./results/kernel_data/results%u.txt", nclients);
-    file_close(file_open(filen, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU));
-    f = file_open(filen, O_CREAT | O_RDWR | O_APPEND, S_IRWXU);
-    if(!f){
-      printk(KERN_ERR "Cannot create file\n");
-      f = NULL;
-      return -1;
+    f = kmalloc(sizeof(struct file *) * ntests, GFP_KERNEL);
+    int n = 1;
+    for (size_t i = 0; i < ntests; i++) {
+      char filen[100];
+      snprintf(filen, 100, "./results/kernel_data/results%u.txt", n);
+      n *=2;
+      file_close(file_open(filen, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU));
+      f[i] = file_open(filen, O_CREAT | O_RDWR | O_APPEND, S_IRWXU);
+      if(!(f[i])){
+        printk(KERN_ERR "Cannot create file %s\n", filen);
+        f[i] = NULL;
+      }
     }
+
   }
   return 0;
+}
+
+void close_files(unsigned int nfiles){
+
+  for (size_t i = 0; i < nfiles; i++) {
+    if(f[i] != NULL)
+      file_close(f[i]);
+  }
+  kfree(f);
 }

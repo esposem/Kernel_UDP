@@ -22,13 +22,14 @@ enum operations {
   SIMULATION
 };
 
-extern int f;
+extern int * f;
 extern int stop;
 
 extern void fill_sockaddr_in(struct sockaddr_in * addr, char *  ip, int flag, int port);
 extern void construct_header(struct msghdr * msg, struct sockaddr_in * address);
 extern void fill_hdr(struct msghdr * hdr,  struct iovec * iov, void * data, size_t len);
-extern int prepare_file(enum operations op, unsigned int nclients);
+extern int prepare_files(enum operations op, unsigned int nclients);
+extern void close_files(unsigned int nfiles);
 
 
 #endif

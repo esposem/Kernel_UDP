@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-int f = -1;
+int * f;
 
 void fill_sockaddr_in(struct sockaddr_in * addr, char *  ip, int flag, int port){
   addr->sin_addr.s_addr = inet_addr(ip);
@@ -26,17 +26,31 @@ void fill_hdr(struct msghdr * hdr,  struct iovec * iov, void * data, size_t len)
   hdr->msg_iov = iov;
 }
 
-int prepare_file(enum operations op, unsigned int nclients){
+int prepare_files(enum operations op, unsigned int ntests){
   if(op != PRINT){
-    char filen[100];
-    snprintf(filen, 100, "./results/user_data/results%u.txt", nclients);
-    close(open(filen, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU));
-    f = open(filen, O_CREAT | O_RDWR | O_APPEND, S_IRWXU);
-    if(!f){
-      printf("Cannot create file\n");
-      f = -1;
-      return -1;
+    f = malloc(sizeof(int)*ntests);
+    int n =1;
+    for (size_t i = 0; i < ntests; i++) {
+      char filen[100];
+      snprintf(filen, 100, "./results/user_data/results%u.txt", n);
+      n*=2;
+      close(open(filen, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU));
+      f[i] = open(filen, O_CREAT | O_RDWR | O_APPEND, S_IRWXU);
+      if(!f){
+        printf("Cannot create file\n");
+        f[i] = -1;
+      }
     }
+
   }
   return 0;
+}
+
+void close_files(unsigned int nfiles){
+
+  for (size_t i = 0; i < nfiles; i++) {
+    if(f[i] != -1)
+      close(f[i]);
+  }
+  free(f);
 }

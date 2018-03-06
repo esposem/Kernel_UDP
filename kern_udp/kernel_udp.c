@@ -90,7 +90,7 @@ int udp_init(struct socket ** s, unsigned char * myip, int myport){
   struct socket * conn_sock;
   struct sockaddr_in address;
   mm_segment_t fs;
-  struct timeval tv = {1,0};
+  struct timeval tv = {0,100000};
   int flag = 1;
 
   #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,2,0)

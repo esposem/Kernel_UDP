@@ -15,6 +15,7 @@ enum operations {
 
 typedef struct udp_service udp_service;
 
+extern struct file ** f;
 extern void k_thread_stop(struct udp_service * k);
 
 extern void init_service(udp_service ** k, char * name, unsigned char * myip, int myport, int(*funct)(void), void * data);
@@ -26,7 +27,7 @@ extern void check_operation(enum operations * operation, char * op);
 extern void check_params(unsigned char * dest, char * src);
 extern void adjust_name(char * print, char * src, int size_name);
 
-extern int prepare_file(enum operations op, unsigned int nclients);
-
+extern int prepare_files(enum operations op, unsigned int ntests);
+extern void close_files(unsigned int nfiles);
 
 #endif
