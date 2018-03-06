@@ -118,10 +118,10 @@ static int __init client_init(void) {
 
 static void __exit client_exit(void) {
   quit_service(cl_thread_1);
-  close_files(ntests);
-  if(operation == TROUGHPUT){
+  if(operation == SIMULATION)
+    close_files(ntests);
+  if(operation == TROUGHPUT)
     printk(KERN_INFO "%s Sent total of %llu packets\n",print_name, sent);
-  }
 }
 
 module_init(client_init)
