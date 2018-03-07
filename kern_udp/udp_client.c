@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include "kclient_operations.h"
 
@@ -81,6 +82,7 @@ static void connection_handler(int thread_num) {
       for (size_t i = 0; i < ntests; i++) {
         client_simulation(rcv_buff, request, &dest_addr, n, i);
         n*=2;
+        ssleep(1);
       }
       printk("Simulation ended\n");
 
