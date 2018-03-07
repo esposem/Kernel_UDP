@@ -120,8 +120,8 @@ int prepare_files(enum operations op, unsigned int ntests){
       char filen[100];
       snprintf(filen, 100, "./results/kernel_data/results%u.txt", n);
       n *=2;
-      file_close(file_open(filen, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU));
-      f[i] = file_open(filen, O_CREAT | O_RDWR | O_APPEND, S_IRWXU);
+      file_close(file_open(filen, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH));
+      f[i] = file_open(filen, O_CREAT | O_RDWR | O_APPEND, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
       if(!(f[i])){
         printk(KERN_ERR "Cannot create file %s\n", filen);
         f[i] = NULL;

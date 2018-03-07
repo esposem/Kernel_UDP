@@ -34,8 +34,8 @@ int prepare_files(enum operations op, unsigned int ntests){
       char filen[100];
       snprintf(filen, 100, "./results/user_data/results%u.txt", n);
       n*=2;
-      close(open(filen, O_CREAT | O_RDWR | O_TRUNC, S_IRWXU));
-      f[i] = open(filen, O_CREAT | O_RDWR | O_APPEND, S_IRWXU);
+      close(open(filen, O_CREAT | O_RDWR | O_TRUNC,  S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH));
+      f[i] = open(filen, O_CREAT | O_RDWR | O_APPEND,  S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
       if(!f){
         printf("Cannot create file\n");
         f[i] = -1;

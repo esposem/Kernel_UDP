@@ -151,10 +151,11 @@ void connection_handler(void){
       print(rcv_buff, request, reply, &dest_addr);
       break;
     default:
-    for (size_t i = 0; i < ntests; i++) {
-      client_simulation(rcv_buff, request, &dest_addr, n, i);
-      n*=2;
-    }
+      for (size_t i = 0; i < ntests; i++) {
+        client_simulation(rcv_buff, request, &dest_addr, n, i);
+        sleep(1);
+        n*=2;
+      }
       break;
   }
 
@@ -172,7 +173,8 @@ int main(int argc,char *argv[]) {
   prepare_files(operation, ntests);
   connection_handler();
   close(udpc_socket);
-  close_files(ntests);
+  if(operation == SIMULATION)
+    close_files(ntests);
   printf("Client closed\n");
   return 0;
 }

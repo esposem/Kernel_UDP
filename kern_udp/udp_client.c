@@ -83,7 +83,6 @@ static void connection_handler(int thread_num) {
         client_simulation(rcv_buff, request, &dest_addr, n, i);
         n*=2;
         ssleep(1);
-        
       }
       printk("Simulation ended\n");
 
