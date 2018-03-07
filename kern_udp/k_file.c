@@ -13,14 +13,15 @@ struct file *file_open(const char *path, int flags, int rights) {
   set_fs(oldfs);
   if (IS_ERR(filp)) {
       err = PTR_ERR(filp);
-      printk(KERN_ERR "Error %d\n", err);
+      printk(KERN_ERR "File Error %d\n", err);
       return NULL;
   }
   return filp;
 }
 
 void file_close(struct file *file) {
-  filp_close(file, NULL);
+  if(file)
+    filp_close(file, NULL);
 }
 
 int file_read(struct file *file, unsigned long long offset, unsigned char *data, unsigned int size) {
