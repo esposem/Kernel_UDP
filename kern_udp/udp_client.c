@@ -46,9 +46,9 @@ static unsigned long tsec = -1;
 module_param(tsec, ulong, S_IRUGO);
 MODULE_PARM_DESC(tsec,"How long the client should send messages (Throughput mode only)");
 
-// static unsigned int nclients = 10;
-// module_param(nclients, uint, S_IRUGO);
-// MODULE_PARM_DESC(nclients,"The number of clients to simulate");
+static unsigned int nclients = 0;
+module_param(nclients, uint, S_IRUGO);
+MODULE_PARM_DESC(nclients,"The number of clients to simulate");
 
 static unsigned int ntests = 1;
 module_param(ntests, uint, S_IRUGO);
@@ -79,11 +79,17 @@ static void connection_handler(int thread_num) {
       print(rcv_buff, request, reply, &dest_addr);
       break;
     default:
-      for (size_t i = 0; i < ntests; i++) {
-        client_simulation(rcv_buff, request, &dest_addr, n, i);
-        n*=2;
-        ssleep(1);
+      if(nclients == 0){
+        for (size_t i = 0; i < ntests; i++) {
+          // n =  nclients, i = indexfile
+          client_simulation(rcv_buff, request, &dest_addr, n, i);
+          n*=2;
+          ssleep(1);
+        }
+      }else{
+        client_simulation(rcv_buff, request, &dest_addr, nclients, 0);
       }
+
       printk("Simulation ended\n");
 
       break;
@@ -102,7 +108,10 @@ static int client_receive(void) {
 }
 
 static void client_start(void){
-  prepare_files(operation, ntests);
+  if(nclients == 0)
+    prepare_files(operation, ntests);
+  else
+    prepare_files(operation, 1);
   init_service(&cl_thread_1, print_name, ipmy, myport, client_receive, NULL);
 }
 
@@ -120,8 +129,14 @@ static int __init client_init(void) {
 
 static void __exit client_exit(void) {
   quit_service(cl_thread_1);
-  if(operation == SIMULATION)
-    close_files(ntests);
+  if(operation == SIMULATION){
+    if(nclients == 0){
+      close_files(ntests);
+    }else{
+      close_files(1);
+    }
+  }
+
   if(operation == TROUGHPUT)
     printk(KERN_INFO "%s Sent total of %llu packets\n",print_name, sent);
 }

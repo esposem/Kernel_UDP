@@ -22,6 +22,7 @@ static enum operations operation = PRINT;
 static unsigned long ns = 1;
 static long tsec = -1;
 static int ntests = 9;
+static int nclients = 0;
 int stop = 1;
 
 
@@ -54,33 +55,43 @@ void check_args(int argc, char * argv[]){
         exit(0);
       }
       narg+=2;
-    } else if(memcmp(argv[i], "-n",2) == 0 || memcmp(argv[i], "-N",2) == 0){
+    } else if(memcmp(argv[i], "-m",2) == 0 || memcmp(argv[i], "-M",2) == 0){
       i++;
       if(i < argc){
         printf("ns: %s, ", argv[i]);
         ns = atol(argv[i]);
       }else{
-        printf("\nError!\nUsage -n delay\n");
+        printf("\nError!\nUsage -m delay\n");
+        exit(0);
+      }
+      narg+=2;
+    }else if(memcmp(argv[i], "-d",2) == 0 || memcmp(argv[i], "-D",2) == 0){
+      i++;
+      if(i < argc){
+        printf("tsec: %s, ", argv[i]);
+        tsec = atol(argv[i]);
+      }else{
+        printf("\nError!\nUsage -d duration\n");
         exit(0);
       }
       narg+=2;
     }else if(memcmp(argv[i], "-t",2) == 0 || memcmp(argv[i], "-T",2) == 0){
       i++;
       if(i < argc){
-        printf("tsec: %s, ", argv[i]);
-        tsec = atol(argv[i]);
+        printf("ntests: %s ", argv[i]);
+        ntests = atoi(argv[i]);
       }else{
-        printf("\nError!\nUsage -t duration\n");
+        printf("\nError!\nUsage -t ntests\n");
         exit(0);
       }
       narg+=2;
-    }else if(memcmp(argv[i], "-c",2) == 0 || memcmp(argv[i], "-C",2) == 0){
+    }else if(memcmp(argv[i], "-n",2) == 0 || memcmp(argv[i], "-N",2) == 0){
       i++;
       if(i < argc){
-        printf("ntests: %s ", argv[i]);
-        ntests = atol(argv[i]);
+        printf("nclients: %s ", argv[i]);
+        nclients = atoi(argv[i]);
       }else{
-        printf("\nError!\nUsage -c ntests\n");
+        printf("\nError!\nUsage -n nclients\n");
         exit(0);
       }
       narg+=2;
@@ -91,7 +102,7 @@ void check_args(int argc, char * argv[]){
   printf("\n");
 
   if(argc < narg){
-    printf("Usage: %s ipaddress port serveraddress serverport [-o (p | t | l | s) ] [-n microseconds] [-t duration] [-c ntests]\n",argv[0]);
+    printf("Usage: %s ipaddress port serveraddress serverport [-o (p | t | l | s) ] [-m microseconds] [-d duration] [-t ntests] [-n nclients]\n",argv[0]);
     exit(0);
   }
 
@@ -151,11 +162,16 @@ void connection_handler(void){
       print(rcv_buff, request, reply, &dest_addr);
       break;
     default:
+    if(nclients == 0){
       for (size_t i = 0; i < ntests; i++) {
         client_simulation(rcv_buff, request, &dest_addr, n, i);
         sleep(1);
         n*=2;
       }
+    }else{
+      client_simulation(rcv_buff, request, &dest_addr, nclients, 0);
+    }
+
       break;
   }
 
@@ -170,11 +186,18 @@ int main(int argc,char *argv[]) {
   signal(SIGINT, sig_handler);
   udp_init();
   printf("Client: Destination is %s:%d\n", serverip, destport);
-  prepare_files(operation, ntests);
+  if(nclients == 0)
+    prepare_files(operation, ntests);
+  else
+    prepare_files(operation, 1);
   connection_handler();
   close(udpc_socket);
-  if(operation == SIMULATION)
-    close_files(ntests);
+  if(operation == SIMULATION){
+    if(nclients == 0)
+      close_files(ntests);
+    else
+      close_files(1);
+  }
   printf("Client closed\n");
   return 0;
 }

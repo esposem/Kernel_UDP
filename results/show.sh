@@ -2,7 +2,11 @@
 
 filename=kernel_result.txt
 foldername=kernel_data
+echo $1
 
+echo
+
+echo $2
 if [ -z ${1} ]; then
   echo "Usage:
     [k | u]
@@ -17,8 +21,8 @@ elif [[ $1 == "u" ]]; then
   filename=user_result.txt
   foldername=user_data
 else
-  filename=$1
-  foldername=$2
+  filename=$2
+  foldername=$1
 fi
 
 rm read_results

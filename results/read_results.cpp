@@ -7,7 +7,6 @@
 #include <vector>
 #include <limits.h>
 #include <dirent.h>
-
 using namespace std;
 
 // read result file generated from kernel module.
@@ -94,9 +93,9 @@ int read_from_file(string filename, unsigned long * res){
     unsigned long t,l;
     ss >> t >> l;
     troughput[trough_count++] = t;
-    if(l == 0)
-      l  = ULONG_MAX;
-    latency[lat_count++] = l;
+    if(l > 0)
+      latency[lat_count++] = l;
+
     // cout << troughput[trough_count-1] << " " << latency[lat_count-1] << endl;
   }
   myfile.close();
@@ -134,9 +133,10 @@ int main(int argc, char const *argv[]) {
 
   for (size_t i = 0; i < files.size(); i++) {
     unsigned long stats[5];
-    if(read_from_file(files[i], stats) >= 0)
+    if(read_from_file(files[i], stats) >= 0){
       latencies.push_back(stats[2]/1000);
       outfile << stats[0] << "\t" << stats[1]*10 << "\t" << stats[2]/1000 << "\t" << stats[3]*10 << "\t" << stats[4]/1000 << "\t" << bar_width << "\n";
+    }
   }
 
 
