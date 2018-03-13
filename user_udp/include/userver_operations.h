@@ -5,8 +5,8 @@
 #include "user_udp.h"
 
 extern int udps_socket;
-extern unsigned long long received;
 
-extern void echo_server(message_data *rcv_buf, message_data *rcv_check);
+extern void echo_server(message_data* rcv_buf, message_data* rcv_check,
+                        int verbose);
 
 #endif
