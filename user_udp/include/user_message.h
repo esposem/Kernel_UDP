@@ -19,6 +19,6 @@ extern size_t        get_message_size(message_data* mess);
 extern size_t        get_total_mess_size(message_data* mess);
 extern void          delete_message(message_data* mess);
 extern void          del_default_messages(void);
-extern void          init_default_messages();
+extern void          init_default_messages(void);
 
 #endif

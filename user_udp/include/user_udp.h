@@ -10,11 +10,6 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#define MAX_UDP_SIZE 65507
-#define _1_SEC_TO_NS 1000000000
-// sometimes the receive blocks for less than 1 sec, so allow this error
-#define ABS_ERROR 2000000
-
 extern int stop;
 
 extern void fill_sockaddr_in(struct sockaddr_in* addr, const char* ip, int flag,

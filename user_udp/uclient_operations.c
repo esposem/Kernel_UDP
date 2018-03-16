@@ -114,7 +114,6 @@ run_outstanding_clients(message_data* rcv_buf, message_data* send_buf,
   }
 
   int              bytes_received, bytes_sent, id;
-  unsigned long    diff = 0;
   struct msghdr    hdr, reply;
   struct client*   cl = malloc(sizeof(struct client) * nclients);
   struct timespec  init_second, current_time;
