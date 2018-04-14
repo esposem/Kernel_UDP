@@ -43,10 +43,8 @@ USER_SERV_HEAD:= $(patsubst %,$(I_DIR)/include/%,$(_USER_CL_HEAD))
 ifeq ($(UNAME), Linux)
 all: user_client user_server
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
-	make results/read_results
 else
 all: user_client user_server
-	make results/read_results
 endif
 
 %.o: $(I_DIR)/%.c $(USER_CL_HEAD) $(USER_SERV_HEAD)
@@ -61,8 +59,8 @@ user_server: $(USER_SERV_OBJ)
 ifeq ($(UNAME), Linux)
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
-	rm user_client user_server results/read_results
+	rm user_client user_server 
 else
 clean:
-	rm user_client user_server *.o results/read_results
+	rm user_client user_server *.o 
 endif

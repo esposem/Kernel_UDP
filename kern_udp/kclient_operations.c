@@ -1,20 +1,23 @@
 #include "kclient_operations.h"
-#include "kernel_udp.h"
 #include "k_file.h"
+#include "kernel_udp.h"
+#include <linux/sched.h>
 
 unsigned long long sent = 0;
 
-static unsigned long diff_time(struct timespec * op1, struct timespec * op2){
-  return (op1->tv_sec - op2->tv_sec)*_1_SEC_TO_NS + op1->tv_nsec - op2->tv_nsec;
+static unsigned long diff_time(struct timespec *op1, struct timespec *op2) {
+  return (op1->tv_sec - op2->tv_sec) * _1_SEC_TO_NS + op1->tv_nsec -
+         op2->tv_nsec;
 }
 
 #define SIZE_SAMPLE 1200
-#define TIME_SAMPLE _1_SEC_TO_NS / 10 // 100 ms after how munch should it keep the sample
+#define TIME_SAMPLE                                                            \
+  _1_SEC_TO_NS / 10 // 100 ms after how munch should it keep the sample
 #define MAX_MESS_WAIT _1_SEC_TO_NS / 10 // max amount a message can wait
 #define DISCARD_INIT 100
 #define DISCARD_END 100
 
-struct client{
+struct client {
   // id the client
   int id;
   // flag to check if it is able to send or not
@@ -28,22 +31,20 @@ struct client{
   unsigned long long total_received;
 };
 
-struct statistic{
-  unsigned long * data;
+struct statistic {
+  unsigned long *data;
   int count;
 };
 
-static void init_stat(struct statistic * s, size_t size){
+static void init_stat(struct statistic *s, size_t size) {
   s->count = 0;
-  s->data = kmalloc(sizeof(unsigned long)*size, GFP_KERNEL);
-  memset(s->data,0,sizeof(unsigned long)*size);
+  s->data = kmalloc(sizeof(unsigned long) * size, GFP_KERNEL);
+  memset(s->data, 0, sizeof(unsigned long) * size);
 }
 
-static void del_stat(struct statistic * s){
-  kfree(s->data);
-}
+static void del_stat(struct statistic *s) { kfree(s->data); }
 
-void init_clients(struct client * cl, int n){
+void init_clients(struct client *cl, int n) {
   for (int i = 0; i < n; i++) {
     cl[i].id = i;
     cl[i].busy = 0;
@@ -54,33 +55,35 @@ void init_clients(struct client * cl, int n){
   }
 }
 
-static int sample_send(struct client * cl){
-  return cl->send_test == 1;
+static int sample_send(struct client *cl) { return cl->send_test == 1; }
+
+static void string_write(char *str, unsigned int nfile) {
+  file_write(f[nfile], 0, str, strlen(str));
 }
 
-static void string_write(char * str, unsigned int nfile){
-  file_write(f[nfile],0, str, strlen(str));
-}
-
-static void write_results(int nclients, struct client * cl, struct statistic * troughput, struct statistic * sample_lat, unsigned int nfile){
-  printk(KERN_INFO "%s Writing results into a file...\n", get_service_name(cl_thread_1));
-  if(f[nfile] == NULL){
+static void write_results(int nclients, struct client *cl,
+                          struct statistic *troughput,
+                          struct statistic *sample_lat, unsigned int nfile) {
+  printk(KERN_INFO "%s Writing results into a file...\n",
+         get_service_name(cl_thread_1));
+  if (f[nfile] == NULL) {
     printk(KERN_ERR "File error\n");
     return;
   }
   int size = sizeof(unsigned long long) + sizeof(unsigned long) + 50;
-  char * data = kmalloc(size, GFP_KERNEL);
+  char *data = kmalloc(size, GFP_KERNEL);
 
-  snprintf(data, size, "# %u %d\n", SIZE_SAMPLE-DISCARD_INIT-DISCARD_END, nclients);
-  string_write(data,nfile);
-  char * str = "#troughput\tlatency\n";
-  string_write(str,nfile);
-  for (int i = DISCARD_INIT; i < SIZE_SAMPLE-DISCARD_END; i++) {
+  snprintf(data, size, "# %u %d\n", SIZE_SAMPLE - DISCARD_INIT - DISCARD_END,
+           nclients);
+  string_write(data, nfile);
+  char *str = "#troughput\tlatency\n";
+  string_write(str, nfile);
+  for (int i = DISCARD_INIT; i < SIZE_SAMPLE - DISCARD_END; i++) {
     snprintf(data, size, "%lu\t%lu\n", troughput->data[i], sample_lat->data[i]);
-    string_write(data,nfile);
+    string_write(data, nfile);
   }
   str = "\n\n";
-  string_write(str,nfile);
+  string_write(str, nfile);
 
   file_close(f[nfile]);
   f[nfile] = NULL;
@@ -88,29 +91,31 @@ static void write_results(int nclients, struct client * cl, struct statistic * t
   printk("%s Done\n", get_service_name(cl_thread_1));
 }
 
+void client_simulation(message_data *rcv_buf, message_data *send_buf,
+                       struct sockaddr_in *dest_addr, unsigned int nclients,
+                       unsigned int nfile) {
+  char *recv_data = get_message_data(rcv_buf),
+       *send_data = get_message_data(send_buf);
 
-void client_simulation(message_data * rcv_buf, message_data * send_buf, struct sockaddr_in * dest_addr, unsigned int nclients, unsigned int nfile){
-  char *  recv_data = get_message_data(rcv_buf), \
-       * send_data = get_message_data(send_buf);
-
-  size_t recv_size = get_total_mess_size(rcv_buf), \
-         send_size = get_message_size(send_buf), \
+  size_t recv_size = get_total_mess_size(rcv_buf),
+         send_size = get_message_size(send_buf),
          size_mess = get_total_mess_size(send_buf);
 
-  if(recv_size < size_mess){
-    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", get_service_name(cl_thread_1));
+  if (recv_size < size_mess) {
+    printk(KERN_ERR
+           "%s Error, receiving buffer size is smaller than expected message\n",
+           get_service_name(cl_thread_1));
     return;
   }
 
-  struct socket * sock = get_service_sock(cl_thread_1);
+  struct socket *sock = get_service_sock(cl_thread_1);
   int bytes_received, bytes_sent, id;
   unsigned long diff = 0;
   struct msghdr hdr;
-  struct client * cl = kmalloc(sizeof(struct client) * nclients, GFP_KERNEL);
+  struct client *cl = kmalloc(sizeof(struct client) * nclients, GFP_KERNEL);
   struct timespec init_second, current_time;
-  struct timespec * init_secondp = &init_second, \
-                  * current_timep = &current_time, \
-                  * temp;
+  struct timespec *init_secondp = &init_second, *current_timep = &current_time,
+                  *temp;
 
   struct statistic troughput;
   struct statistic sample_lat;
@@ -118,34 +123,37 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
   init_stat(&sample_lat, SIZE_SAMPLE);
 
   int lat_pick = 0;
-  long  time_spent = 0;
+  long time_spent = 0;
 
-  printk("%s Started simulation with %u clients\n", get_service_name(cl_thread_1), nclients);
+  printk("%s Started simulation with %u clients\n",
+         get_service_name(cl_thread_1), nclients);
 
   init_clients(cl, nclients);
   construct_header(&hdr, dest_addr);
   getrawmonotonic(init_secondp);
 
-  while ((troughput.count < SIZE_SAMPLE) && !(kthread_should_stop() || signal_pending(current))) {
+  while ((troughput.count < SIZE_SAMPLE) &&
+         !(kthread_should_stop() || signal_pending(current))) {
 
-    for(int i=0; i < nclients; i++){
+    for (int i = 0; i < nclients; i++) {
       if (cl[i].busy)
         continue;
       set_message_id(send_buf, i);
 
-      if((bytes_sent = udp_send(sock, &hdr, send_buf, size_mess)) != size_mess){
-        printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(cl_thread_1), bytes_sent);
+      if ((bytes_sent = udp_send(sock, &hdr, send_buf, size_mess)) !=
+          size_mess) {
+        printk(KERN_ERR "%s Error %d in sending: server not active\n",
+               get_service_name(cl_thread_1), bytes_sent);
         continue;
       }
 
-      if(sample_send(&cl[i])){
+      if (sample_send(&cl[i])) {
         getrawmonotonic(&cl[i].start_lat);
         cl[i].send_test = 0;
         cl[i].time_valid = 1;
       }
 
       cl[i].busy = 1;
-
     }
 
     bytes_received = udp_receive(sock, &hdr, rcv_buf, recv_size);
@@ -154,38 +162,38 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
     // calculate how much time passed
     diff = diff_time(current_timep, init_secondp);
 
-    time_spent+= diff;
+    time_spent += diff;
     // check message has been received correctly
-    if(bytes_received == size_mess &&
-      memcmp(recv_data, send_data, send_size) == 0 &&
-      (id = get_message_id(rcv_buf)) < nclients){
+    if (bytes_received == size_mess &&
+        memcmp(recv_data, send_data, send_size) == 0 &&
+        (id = get_message_id(rcv_buf)) < nclients) {
 
       // update client data
       cl[id].total_received++;
 
       // if sample, save the statistics
-      if(cl[id].time_valid){
-        sample_lat.data[sample_lat.count++] = diff_time(current_timep, &cl[id].start_lat);
+      if (cl[id].time_valid) {
+        sample_lat.data[sample_lat.count++] =
+            diff_time(current_timep, &cl[id].start_lat);
         cl[id].time_valid = 0;
       }
       // undo the effect of updates
       cl[id].waiting = MAX_MESS_WAIT;
     }
 
-
     for (int i = 0; i < nclients; i++) {
       cl[i].waiting += diff;
-      if(cl[i].waiting >= MAX_MESS_WAIT){
+      if (cl[i].waiting >= MAX_MESS_WAIT) {
         cl[i].busy = 0;
         cl[i].waiting = 0;
-        if(cl[i].time_valid){
+        if (cl[i].time_valid) {
           sample_lat.data[sample_lat.count++] = ULONG_MAX;
           cl[i].time_valid = 0;
         }
       }
     }
 
-    if(time_spent >= TIME_SAMPLE){
+    if (time_spent >= TIME_SAMPLE) {
       for (int i = 0; i < nclients; i++) {
         troughput.data[troughput.count] += cl[i].total_received;
         cl[i].total_received = 0;
@@ -209,57 +217,61 @@ void client_simulation(message_data * rcv_buf, message_data * send_buf, struct s
   kfree(cl);
 }
 
-
-void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned long ns_int, long tsec){
+void troughput(message_data *send_buf, struct sockaddr_in *dest_addr,
+               unsigned long ns_int, long tsec) {
 
   struct common_data timep;
-  struct timespec * old_timep = &timep.old_time, \
-                  * current_timep = &timep.current_time, \
-                  * temp;
+  struct timespec *old_timep = &timep.old_time,
+                  *current_timep = &timep.current_time, *temp;
 
   unsigned long diff;
-  unsigned long long seconds=0, sent_sec=0;
+  unsigned long long seconds = 0, sent_sec = 0;
   int seconds_counter = 0;
   int bytes_sent;
   timep.size_avg = sizeof(timep.average);
   timep.average[0] = '0';
   timep.average[1] = '\0';
 
-  char * send_data = get_message_data(send_buf);
+  char *send_data = get_message_data(send_buf);
   size_t send_size = get_message_size(send_buf);
 
   struct msghdr hdr;
   construct_header(&hdr, dest_addr);
 
-  printk("%s Throughput test: this module will count how many packets it sends\n", get_service_name(cl_thread_1));
+  printk(
+      "%s Throughput test: this module will count how many packets it sends\n",
+      get_service_name(cl_thread_1));
   getrawmonotonic(old_timep);
 
-  while(1){
+  while (1) {
 
-    if(kthread_should_stop() || signal_pending(current)){
+    if (kthread_should_stop() || signal_pending(current)) {
       break;
     }
 
     getrawmonotonic(current_timep);
     diff = diff_time(current_timep, old_timep);
 
-    if((bytes_sent = udp_send(get_service_sock(cl_thread_1), &hdr, send_data, send_size)) == send_size){
+    if ((bytes_sent = udp_send(get_service_sock(cl_thread_1), &hdr, send_data,
+                               send_size)) == send_size) {
       sent_sec++;
       ndelay(ns_int); // WARNING! BUSY WAIT
-    }else{
-      printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(cl_thread_1), bytes_sent);
+    } else {
+      printk(KERN_ERR "%s Error %d in sending: server not active\n",
+             get_service_name(cl_thread_1), bytes_sent);
     }
 
-    seconds_counter+= (int) diff;
+    seconds_counter += (int)diff;
 
-    if(seconds_counter >= _1_SEC_TO_NS){
+    if (seconds_counter >= _1_SEC_TO_NS) {
       seconds++;
-      sent+= sent_sec;
-      division(sent,seconds, timep.average, timep.size_avg);
-      printk("C: Sent:%lld/sec   Avg:%s   Tot:%llu\n", sent_sec, timep.average, sent);
+      sent += sent_sec;
+      division(sent, seconds, timep.average, timep.size_avg);
+      printk("C: Sent:%lld/sec   Avg:%s   Tot:%llu\n", sent_sec, timep.average,
+             sent);
       sent_sec = 0;
       seconds_counter = 0;
-      if(seconds == tsec){
+      if (seconds == tsec) {
         printk(KERN_INFO "STOP!\n");
         break;
       }
@@ -272,23 +284,27 @@ void troughput(message_data * send_buf, struct sockaddr_in * dest_addr, unsigned
   sent += sent_sec;
 }
 
-void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check, struct sockaddr_in * dest_addr){
+void latency(message_data *rcv_buf, message_data *send_buf,
+             message_data *rcv_check, struct sockaddr_in *dest_addr) {
 
   struct common_data timep;
   unsigned long long total_latency = 0, correctly_received = 0;
-  int bytes_received, bytes_sent, loop_closed = 1, time_interval = _1_SEC_TO_NS - ABS_ERROR, one_sec = 0;
+  int bytes_received, bytes_sent,
+      loop_closed = 1, time_interval = _1_SEC_TO_NS - ABS_ERROR, one_sec = 0;
   unsigned long diff;
 
-  char * send_data = get_message_data(send_buf), \
-       * recv_data = get_message_data(rcv_buf), \
-       * check_data = get_message_data(rcv_check);
+  char *send_data = get_message_data(send_buf),
+       *recv_data = get_message_data(rcv_buf),
+       *check_data = get_message_data(rcv_check);
 
-  size_t check_size = get_message_size(rcv_check), \
-         send_size = get_message_size(send_buf), \
+  size_t check_size = get_message_size(rcv_check),
+         send_size = get_message_size(send_buf),
          recv_size = get_message_size(rcv_buf);
 
-  if(recv_size < check_size){
-    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", get_service_name(cl_thread_1));
+  if (recv_size < check_size) {
+    printk(KERN_ERR
+           "%s Error, receiving buffer size is smaller than expected message\n",
+           get_service_name(cl_thread_1));
     return;
   }
 
@@ -299,85 +315,107 @@ void latency(message_data * rcv_buf, message_data * send_buf, message_data * rcv
   struct msghdr hdr;
   construct_header(&hdr, dest_addr);
 
-  printk("%s Latency test: this module will count how long it takes to send and receive a packet\n", get_service_name(cl_thread_1));
+  printk("%s Latency test: this module will count how long it takes to send "
+         "and receive a packet\n",
+         get_service_name(cl_thread_1));
 
-  while(1){
+  while (1) {
 
-    if(kthread_should_stop() || signal_pending(current)){
+    if (kthread_should_stop() || signal_pending(current)) {
       return;
     }
 
-    if(loop_closed){
+    if (loop_closed) {
       getrawmonotonic(&timep.old_time);
-      if((bytes_sent = udp_send(get_service_sock(cl_thread_1), &hdr, send_data, send_size)) != send_size){
-        printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(cl_thread_1), bytes_sent);
+      if ((bytes_sent = udp_send(get_service_sock(cl_thread_1), &hdr, send_data,
+                                 send_size)) != send_size) {
+        printk(KERN_ERR "%s Error %d in sending: server not active\n",
+               get_service_name(cl_thread_1), bytes_sent);
         continue;
       }
       loop_closed = 0;
     }
 
     // blocks at most for one second
-    bytes_received = udp_receive(get_service_sock(cl_thread_1), &hdr, recv_data, recv_size);
+    bytes_received =
+        udp_receive(get_service_sock(cl_thread_1), &hdr, recv_data, recv_size);
     getrawmonotonic(&timep.current_time);
     diff = diff_time(&timep.current_time, &timep.old_time);
 
-    if(bytes_received == MAX_MESS_SIZE && memcmp(recv_data, check_data, check_size) == 0){
+    if (bytes_received == MAX_MESS_SIZE &&
+        memcmp(recv_data, check_data, check_size) == 0) {
       total_latency += diff;
       one_sec += diff;
       correctly_received++;
       loop_closed = 1;
-      division(total_latency,correctly_received, timep.average, timep.size_avg);
-    }else if(bytes_received < 0){ // nothing received
+      division(total_latency, correctly_received, timep.average,
+               timep.size_avg);
+    } else if (bytes_received < 0) { // nothing received
       one_sec = _1_SEC_TO_NS;
     }
 
-    if(one_sec >= time_interval){
+    if (one_sec >= time_interval) {
       one_sec = 0;
-      printk(KERN_INFO "%s Latency average is %s\n",get_service_name(cl_thread_1), timep.average);
+      printk(KERN_INFO "%s Latency average is %s\n",
+             get_service_name(cl_thread_1), timep.average);
     }
   }
 }
 
-void print(message_data * rcv_buf, message_data * send_buf, message_data * rcv_check, struct sockaddr_in * dest_addr){
+void print(message_data *rcv_buf, message_data *send_buf,
+           message_data *rcv_check, struct sockaddr_in *dest_addr) {
 
   int bytes_received, bytes_sent;
-  struct sockaddr_in * address;
+  struct sockaddr_in *address;
 
-  char * send_data = get_message_data(send_buf), \
-       * recv_data = get_message_data(rcv_buf), \
-       *  check_data = get_message_data(rcv_check);
+  char *send_data = get_message_data(send_buf),
+       *recv_data = get_message_data(rcv_buf),
+       *check_data = get_message_data(rcv_check);
 
-  size_t check_size = get_message_size(rcv_check), \
-         send_size = get_message_size(send_buf), \
+  size_t check_size = get_message_size(rcv_check),
+         send_size = get_message_size(send_buf),
          recv_size = get_message_size(rcv_buf);
 
   struct msghdr hdr;
   construct_header(&hdr, dest_addr);
 
-  if(recv_size < check_size){
-    printk(KERN_ERR "%s Error, receiving buffer size is smaller than expected message\n", get_service_name(cl_thread_1));
+  if (recv_size < check_size) {
+    printk(KERN_ERR
+           "%s Error, receiving buffer size is smaller than expected message\n",
+           get_service_name(cl_thread_1));
     return;
   }
 
-  printk("%s Performing a simple test: this module will send OK and will wait to receive %s from server\n", get_service_name(cl_thread_1), send_data);
+  printk("%s Performing a simple test: this module will send OK and will wait "
+         "to receive %s from server\n",
+         get_service_name(cl_thread_1), send_data);
 
-  if((bytes_sent = udp_send(get_service_sock(cl_thread_1), &hdr, send_data, send_size)) == send_size){
+  if ((bytes_sent = udp_send(get_service_sock(cl_thread_1), &hdr, send_data,
+                             send_size)) == send_size) {
     address = hdr.msg_name;
-    printk(KERN_INFO "%s Sent %s (size %zu) to %pI4 : %hu\n",get_service_name(cl_thread_1), send_data, send_size, &address->sin_addr, ntohs(address->sin_port));
-  }else{
-    printk(KERN_ERR "%s Error %d in sending: server not active\n", get_service_name(cl_thread_1), bytes_sent);
+    printk(KERN_INFO "%s Sent %s (size %zu) to %pI4 : %hu\n",
+           get_service_name(cl_thread_1), send_data, send_size,
+           &address->sin_addr, ntohs(address->sin_port));
+  } else {
+    printk(KERN_ERR "%s Error %d in sending: server not active\n",
+           get_service_name(cl_thread_1), bytes_sent);
   }
 
-  do{
+  do {
 
-    if(kthread_should_stop() || signal_pending(current)){
+    if (kthread_should_stop() || signal_pending(current)) {
       return;
     }
-    bytes_received = udp_receive(get_service_sock(cl_thread_1), &hdr, recv_data, recv_size);
+    bytes_received =
+        udp_receive(get_service_sock(cl_thread_1), &hdr, recv_data, recv_size);
 
-  }while(!(bytes_received == MAX_MESS_SIZE && memcmp(recv_data, check_data, check_size) == 0));
+  } while (!(bytes_received == MAX_MESS_SIZE &&
+             memcmp(recv_data, check_data, check_size) == 0));
 
   address = hdr.msg_name;
-  printk(KERN_INFO "%s Received %s (size %d) from %pI4:%hu\n",get_service_name(cl_thread_1), recv_data, bytes_received, &address->sin_addr, ntohs(address->sin_port));
-  printk(KERN_INFO "%s All done, terminating client\n", get_service_name(cl_thread_1));
+  printk(KERN_INFO "%s Received %s (size %d) from %pI4:%hu\n",
+         get_service_name(cl_thread_1), recv_data, bytes_received,
+         &address->sin_addr, ntohs(address->sin_port));
+  printk(KERN_INFO "%s All done, terminating client\n",
+         get_service_name(cl_thread_1));
 }
