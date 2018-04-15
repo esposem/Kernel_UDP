@@ -21,7 +21,7 @@ MODULE_PARM_DESC(myport, "The receiving port, default 3000");
 //######################################################
 
 //############## Types of operation #######
-static char *opt = "s";
+static char *opt = "p";
 static enum operations operation = SIMULATION;
 module_param(opt, charp, S_IRUGO);
 MODULE_PARM_DESC(opt, "P or p for HELLO-OK, T or t for Troughput, L or l for "
