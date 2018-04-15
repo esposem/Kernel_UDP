@@ -33,7 +33,7 @@ MODULE_PARM_DESC(destport,"The server port, default 3000");
 //######################################################
 
 //############## Types of operation #######
-static char * opt = "s";
+static char * opt = "p";
 static enum operations operation = PRINT;
 module_param(opt, charp, S_IRUGO);
 MODULE_PARM_DESC(opt,"P or p for HELLO-OK, T or t for Troughput, L or l for Latency, S or s for Simulation");
