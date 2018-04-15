@@ -50,11 +50,11 @@ when loading the module: <br> `sudo insmod udp_server.ko myip=123.12.1.2 port=30
 For the other options, type `modinfo module_name.ko` in the terminal to get these informations.
 
 The module features 4 operation types:<br>
-[-] PRINT simple HELLO-OK passing<br>
-[-] TROUGHPUT checks how many messages a client can send and how
+- PRINT simple HELLO-OK passing<br>
+- TROUGHPUT checks how many messages a client can send and how
 many the server can receive<br>
-[-] LATENCY checks the average latency<br>
-[-] SIMULATION simulates n clients sending messages and counting
+- LATENCY checks the average latency<br>
+- SIMULATION simulates n clients sending messages and counting
 how many can be received back each second. Prints the result in
 a file.
 
