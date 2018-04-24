@@ -6,9 +6,7 @@
 unsigned long long sent = 0;
 
 // time different in microseconds
-static unsigned long
-diff_time(struct timespec* op1, struct timespec* op2)
-{
+static unsigned long diff_time(struct timespec *op1, struct timespec *op2) {
   return (op1->tv_sec - op2->tv_sec) * 1000000 +
          (op1->tv_nsec - op2->tv_nsec) / 1000;
 }
@@ -16,29 +14,36 @@ diff_time(struct timespec* op1, struct timespec* op2)
 #define DISCARD_INIT 100
 #define DISCARD_END 100
 #define SIZE_SAMPLE 10000
-#define VERBOSE 1
+#define VERBOSE 0
 
-struct client
-{
-  int                id;        // id the client
-  int                busy;      // flag to check if it is able to send or not
-  unsigned long      waiting;   // how much it's waiting for packet 0-1sec max
-  struct timespec    start_lat; // keeps track of sample latency
+struct client {
+  int id;                    // id the client
+  int busy;                  // flag to check if it is able to send or not
+  unsigned long waiting;     // how much it's waiting for packet 0-1sec max
+  struct timespec start_lat; // keeps track of sample latency
   unsigned long long total_received;
 };
 
-struct statistic
-{
-  unsigned long* data;
-  unsigned long* elapsed;
-  int            count;
+struct statistic {
+  unsigned long *data;
+  unsigned long *elapsed;
+  int count;
 };
+
+static unsigned long total_received = 0;
+static struct timer_list stats_ev;
+static struct timeval stats_interval;
 
 static int TIMEOUT_US = 500; // max amount a message can wait in us
 
-static void
-init_stat(struct statistic* s)
-{
+static void on_stats(unsigned long arg) {
+  if (VERBOSE)
+    printk(KERN_INFO "Client: %lu value/sec\n", total_received);
+  total_received = 0;
+  mod_timer(&stats_ev, jiffies + timeval_to_jiffies(&stats_interval));
+}
+
+static void init_stat(struct statistic *s) {
   s->count = 0;
   s->data = kmalloc(sizeof(unsigned long) * SIZE_SAMPLE, GFP_KERNEL);
   s->elapsed = kmalloc(sizeof(unsigned long) * SIZE_SAMPLE, GFP_KERNEL);
@@ -46,28 +51,22 @@ init_stat(struct statistic* s)
   memset(s->elapsed, 0, sizeof(unsigned long) * SIZE_SAMPLE);
 }
 
-static void
-del_stat(struct statistic* s)
-{
+static void del_stat(struct statistic *s) {
   kfree(s->data);
   kfree(s->elapsed);
 }
 
-void
-init_clients(struct client* cl, int n)
-{
+void init_clients(struct client *cl, int n) {
   memset(cl, 0, sizeof(struct client) * n);
   for (int i = 0; i < n; i++)
     cl[i].id = i;
 }
 
-static void
-write_results(struct file* f, struct statistic* sample_lat,
-              unsigned int nclients)
-{
-  char  data[256];
-  char  filen[256];
-  char* str = "#count\tlatency\tabsolute_time\n";
+static void write_results(struct file *f, struct statistic *sample_lat,
+                          unsigned int nclients) {
+  char data[256];
+  char filen[256];
+  char *str = "#count\tlatency\tabsolute_time\n";
 
   printk(KERN_INFO "%s Writing results into a file...\n",
          get_service_name(cl_thread_1));
@@ -91,11 +90,10 @@ write_results(struct file* f, struct statistic* sample_lat,
   printk("%s Done\n", get_service_name(cl_thread_1));
 }
 
-void
-run_outstanding_clients(message_data* rcv_buf, message_data* send_buf,
-                        struct sockaddr_in* dest_addr, unsigned int nclients,
-                        unsigned int duration, struct file* f)
-{
+void run_outstanding_clients(message_data *rcv_buf, message_data *send_buf,
+                             struct sockaddr_in *dest_addr,
+                             unsigned int nclients, unsigned int duration,
+                             struct file *f) {
   char *recv_data = get_message_data(rcv_buf),
        *send_data = get_message_data(send_buf);
 
@@ -110,13 +108,17 @@ run_outstanding_clients(message_data* rcv_buf, message_data* send_buf,
     return;
   }
 
-  struct socket*   sock = get_service_sock(cl_thread_1);
-  int              bytes_received, bytes_sent, id;
-  unsigned long    total_received = 0, elapsed = 0;
-  struct msghdr    hdr, reply;
-  struct client*   cl = kmalloc(sizeof(struct client) * nclients, GFP_KERNEL);
-  struct timespec  init_second, current_time;
+  struct socket *sock = get_service_sock(cl_thread_1);
+  int bytes_received, bytes_sent, id;
+  unsigned long elapsed = 0;
+  struct msghdr hdr, reply;
+  struct client *cl = kmalloc(sizeof(struct client) * nclients, GFP_KERNEL);
+  struct timespec init_second, current_time;
   struct statistic sample_lat;
+
+  setup_timer(&stats_ev, on_stats, 0);
+  stats_interval = (struct timeval){1, 0};
+  mod_timer(&stats_ev, jiffies + timeval_to_jiffies(&stats_interval));
 
   printk("%s Started simulation with %u clients\n",
          get_service_name(cl_thread_1), nclients);
@@ -156,11 +158,11 @@ run_outstanding_clients(message_data* rcv_buf, message_data* send_buf,
       cl[id].total_received++;
       total_received++;
       sample_lat.count = sample_lat.count + 1 == SIZE_SAMPLE
-                           ? sample_lat.count
-                           : sample_lat.count + 1;
+                             ? sample_lat.count
+                             : sample_lat.count + 1;
       sample_lat.elapsed[sample_lat.count] = elapsed;
       sample_lat.data[sample_lat.count] =
-        diff_time(&current_time, &cl[id].start_lat);
+          diff_time(&current_time, &cl[id].start_lat);
       cl[id].busy = 0;
     }
     for (int i = 0; i < nclients; i++)
@@ -173,14 +175,14 @@ run_outstanding_clients(message_data* rcv_buf, message_data* send_buf,
         }
       }
 
-    if (VERBOSE && total_received % (10000 * nclients) == 0)
-      printk(KERN_INFO "%s %ld messages in %ld msec.\n\n",
-             get_service_name(cl_thread_1), total_received, elapsed / 1000);
+    // if (VERBOSE && total_received % (10000 * nclients) == 0)
+    //   printk(KERN_INFO "%s %ld messages in %ld msec.\n\n",
+    //          get_service_name(cl_thread_1), total_received, elapsed / 1000);
   } while (!(kthread_should_stop() || signal_pending(current)) &&
            (elapsed / 1000000) < duration);
 
   write_results(f, &sample_lat, nclients);
-
+  del_timer(&stats_ev);
   del_stat(&sample_lat);
   kfree(cl);
 }

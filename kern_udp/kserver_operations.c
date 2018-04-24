@@ -3,25 +3,21 @@
 #include "kernel_udp.h"
 #include <linux/kthread.h>
 
-#define VERBOSE 1
+#define VERBOSE 0
 
-unsigned long long
-diff_time(struct timespec* op1, struct timespec* op2)
-{
+unsigned long long diff_time(struct timespec *op1, struct timespec *op2) {
   return (op1->tv_sec - op2->tv_sec) * 1000000 +
          (op1->tv_nsec - op2->tv_nsec) / 1000;
 }
 
-void
-echo_server(message_data* rcv_buf, message_data* rcv_check)
-{
+void echo_server(message_data *rcv_buf, message_data *rcv_check) {
 
-  int                bytes_received, bytes_sent;
-  long               msg_count = 0, elapsed = 0;
-  struct msghdr      reply, hdr;
-  struct timespec    init_second, current_time;
+  int bytes_received, bytes_sent;
+  long msg_count = 0, elapsed = 0;
+  struct msghdr reply, hdr;
+  struct timespec init_second, current_time;
   struct sockaddr_in dest;
-  struct socket*     sock = get_service_sock(udp_server);
+  struct socket *sock = get_service_sock(udp_server);
   construct_header(&reply, NULL);
   construct_header(&hdr, &dest);
 
@@ -60,7 +56,7 @@ echo_server(message_data* rcv_buf, message_data* rcv_check)
 
     if (bytes_received == check_total_s &&
         memcmp(recv_data, check_data, check_size) == 0) {
-      reply.msg_name = (struct sockaddr_in*)hdr.msg_name;
+      reply.msg_name = (struct sockaddr_in *)hdr.msg_name;
       if ((bytes_sent = udp_send(sock, &reply, rcv_buf, bytes_received)) !=
           bytes_received) {
         printk(KERN_ERR "%s Error %d in sending: server not active\n",
